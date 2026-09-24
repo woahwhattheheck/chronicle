@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app-with-chronicle
+  labels:
+    app: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+      annotations:
+        chronicle.io/scrape: "true"
+        chronicle.io/port: "9090"
+        chronicle.io/path: "/metrics"
+    spec:
+      containers:
+        # Replace this container with your workload that exposes Prometheus
+        # text metrics on :9090/metrics. For a local end-to-end demo without a
+        # cluster, run `go run .` in this directory instead.
+        - name: demo-app
+          image: public.ecr.aws/docker/library/busybox:1.36
+          command: ["sh", "-c", "echo 'replace demo-app with your metrics-emitting image'; sleep 3600"]
+          ports:
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+        - name: chronicle-sidecar
+          image: ghcr.io/chronicle-db/chronicle:latest
+          args: ["serve", "--data-dir", "/data"]
+          ports:
+            - name: health
+              containerPort: 8080
+            - name: http
+              containerPort: 8086
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CHRONICLE_SIDECAR
+              value: "true"
+            - name: CHRONICLE_SCRAPE_PORT
+              value: "9090"
+            - name: CHRONICLE_SCRAPE_PATH
+              value: "/metrics"
+            - name: CHRONICLE_DATA_DIR
+              value: /data
+          volumeMounts:
+            - name: chronicle-data
+              mountPath: /data
+            - name: podinfo
+              mountPath: /etc/podinfo
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: chronicle-data
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: labels
+                fieldRef:
+                  fieldPath: metadata.labels
+              - path: annotations
+                fieldRef:
+                  fieldPath: metadata.annotations

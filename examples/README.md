@@ -64,6 +64,19 @@ Features demonstrated:
 - Native histograms with percentiles
 - Alerting rules
 
+
+### [kubernetes-sidecar](./kubernetes-sidecar)
+Chronicle as a Kubernetes sidecar scraping pod metrics from localhost.
+
+```bash
+cd kubernetes-sidecar && go run .
+```
+
+Features demonstrated:
+- `K8sSidecar` scraping co-located `/metrics`
+- Downward API pod metadata tags
+- Deployment/Service manifests
+
 ### [plugin](./plugin)
 Custom plugin development with aggregator and transformer plugins.
 

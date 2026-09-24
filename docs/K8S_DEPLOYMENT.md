@@ -244,3 +244,7 @@ Chronicle exposes two health endpoints used by Kubernetes probes:
 - [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) — Environment variables for K8s integration
 - [CONFIGURATION.md](./CONFIGURATION.md) — Full configuration reference
 - [FEATURE_MATURITY.md](../FEATURE_MATURITY.md) — Feature maturity levels
+
+## Runnable sidecar example
+
+See [`examples/kubernetes-sidecar`](../examples/kubernetes-sidecar) for a local demo and Kubernetes manifests that scrape a co-located app via `K8sSidecar`.
