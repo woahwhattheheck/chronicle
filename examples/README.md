@@ -64,6 +64,19 @@ Features demonstrated:
 - Native histograms with percentiles
 - Alerting rules
 
+
+### [home-automation](./home-automation)
+MQTT / Zigbee / Z-Wave style sensor ingestion for smart-home data.
+
+```bash
+cd home-automation && go run .
+```
+
+Features demonstrated:
+- Multi-protocol topic simulation
+- Schema-tagged writes and aggregations
+- Optional Mosquitto compose broker
+
 ### [plugin](./plugin)
 Custom plugin development with aggregator and transformer plugins.
 

@@ -1,0 +1,12 @@
+version: "3.9"
+
+# Optional Mosquitto broker for experiments with real MQTT clients.
+# The Go demo simulates topics in-process and does not require this broker.
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
