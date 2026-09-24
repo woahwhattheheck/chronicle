@@ -43,12 +43,30 @@ func convertQueryFromInternal(q *query.Query) *Query {
 	for _, tf := range q.TagFilters {
 		result.TagFilters = append(result.TagFilters, TagFilter{
 			Key:    tf.Key,
-			Op:     TagOp(tf.Op),
+			Op:     convertTagOpFromInternal(tf.Op),
 			Values: tf.Values,
 		})
 	}
 
 	return result
+}
+
+// convertTagOpFromInternal maps internal/query TagOp values to the public
+// TagOp enum. The two enums are not iota-aligned (public includes Regex ops),
+// so a raw cast would mis-map TagOpNotIn onto TagOpRegex.
+func convertTagOpFromInternal(op query.TagOp) TagOp {
+	switch op {
+	case query.TagOpEq:
+		return TagOpEq
+	case query.TagOpNotEq:
+		return TagOpNotEq
+	case query.TagOpIn:
+		return TagOpIn
+	case query.TagOpNotIn:
+		return TagOpNotIn
+	default:
+		return TagOp(op)
+	}
 }
 
 func parseAggFunc(token string) AggFunc {

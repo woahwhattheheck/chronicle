@@ -464,6 +464,12 @@ func (ce *CardinalityEstimator) EstimateCardinality(q *Query) int64 {
 				sel = 1.0
 			}
 			estimate *= sel
+		case TagOpNotIn:
+			sel := 1.0 - (float64(len(tf.Values)) / float64(card))
+			if sel < 0.0 {
+				sel = 0.0
+			}
+			estimate *= sel
 		case TagOpRegex, TagOpNotRegex:
 			estimate *= 0.25 // conservative estimate for regex
 		}

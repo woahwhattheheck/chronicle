@@ -242,6 +242,7 @@ func TestParserAdvanced(t *testing.T) {
 		{"group by multiple", "SELECT mean(value) FROM cpu GROUP BY time(5m), host, region", false},
 		{"not equals", "SELECT count(value) FROM cpu WHERE host != 'server1'", false},
 		{"in operator", "SELECT sum(value) FROM cpu WHERE host IN ('server1', 'server2')", false},
+		{"not in operator", "SELECT sum(value) FROM cpu WHERE host NOT IN ('server1', 'server2')", false},
 		{"time range", "SELECT mean(value) FROM cpu WHERE time > now() - 1h AND time < now()", false},
 		{"complex", "SELECT mean(value) FROM cpu WHERE host = 'server1' AND region = 'us-west' GROUP BY time(5m) LIMIT 100", false},
 		{"invalid select", "SELEKT count(value) FROM cpu", true},

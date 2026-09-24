@@ -197,6 +197,9 @@ func (se *SelectivityEstimator) CombinedSelectivity(stats *TableStatistics, q *Q
 			sel *= (1.0 - eqSel)
 		case TagOpIn:
 			sel *= se.EstimateTagInSelectivity(stats, tf.Key, len(tf.Values))
+		case TagOpNotIn:
+			inSel := se.EstimateTagInSelectivity(stats, tf.Key, len(tf.Values))
+			sel *= (1.0 - inSel)
 		case TagOpRegex:
 			pattern := ""
 			if len(tf.Values) > 0 {

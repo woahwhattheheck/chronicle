@@ -136,7 +136,7 @@ func (pp *PredicatePushDown) AnalyzePredicates(q *Query) PredicateAnalysis {
 			Field: tf.Key,
 		}
 		switch tf.Op {
-		case TagOpEq, TagOpNotEq, TagOpIn:
+		case TagOpEq, TagOpNotEq, TagOpIn, TagOpNotIn:
 			p.Safe = true
 			p.Value = strings.Join(tf.Values, ",")
 			analysis.Pushable = append(analysis.Pushable, p)

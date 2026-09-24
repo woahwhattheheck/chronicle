@@ -164,6 +164,24 @@ func TestMatchSeriesTagFilters(t *testing.T) {
 			want:       false,
 		},
 		{
+			name:       "not in operator match (value absent from list)",
+			seriesTags: map[string]string{"host": "d"},
+			filters:    []TagFilter{{Key: "host", Op: TagOpNotIn, Values: []string{"a", "b", "c"}}},
+			want:       true,
+		},
+		{
+			name:       "not in operator match (missing tag)",
+			seriesTags: map[string]string{"env": "prod"},
+			filters:    []TagFilter{{Key: "host", Op: TagOpNotIn, Values: []string{"a", "b", "c"}}},
+			want:       true,
+		},
+		{
+			name:       "not in operator no match (value present)",
+			seriesTags: map[string]string{"host": "a"},
+			filters:    []TagFilter{{Key: "host", Op: TagOpNotIn, Values: []string{"a", "b", "c"}}},
+			want:       false,
+		},
+		{
 			name:       "multiple filters all pass",
 			seriesTags: map[string]string{"host": "a", "env": "prod"},
 			filters: []TagFilter{

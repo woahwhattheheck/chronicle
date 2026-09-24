@@ -66,6 +66,7 @@ const (
 	TagOpIn                    // Set membership (tag in [values...])
 	TagOpRegex                 // Regex match (tag =~ pattern)
 	TagOpNotRegex              // Negated regex match (tag !~ pattern)
+	TagOpNotIn                 // Negated set membership (tag not in [values...])
 )
 
 // TagFilter restricts query results to series whose tag Key satisfies
