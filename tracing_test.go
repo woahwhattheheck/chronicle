@@ -61,7 +61,7 @@ func TestTraceCorrelator_GetTracesForMetric(t *testing.T) {
 		ref := &TraceReference{
 			TraceID:   "trace" + string(rune('a'+i)),
 			Metric:    "http_latency",
-			Timestamp: now - int64(i*int(time.Minute)),
+			Timestamp: now - int64(i)*int64(time.Minute),
 		}
 		tc.RecordTraceReference(ref)
 	}

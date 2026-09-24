@@ -45,7 +45,7 @@ func TestDBWriteAndQuery(t *testing.T) {
 						Metric:    tc.metric,
 						Tags:      map[string]string{"host": "server1"},
 						Value:     float64(i),
-						Timestamp: now + int64(i*int(time.Second)),
+						Timestamp: now + int64(i)*int64(time.Second),
 					})
 					if err != nil {
 						t.Fatalf("write: %v", err)

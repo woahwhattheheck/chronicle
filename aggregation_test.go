@@ -130,7 +130,7 @@ func TestAggBuckets_MultipleWindows(t *testing.T) {
 
 	// Add points spanning 3 minutes
 	for i := 0; i < 30; i++ {
-		ts := baseTime + int64(i*10*int(time.Second))
+		ts := baseTime + int64(i)*10*int64(time.Second)
 		err := buckets.add(tags, ts, float64(i), window, nil, AggCount)
 		if err != nil {
 			t.Fatalf("add failed: %v", err)

@@ -99,7 +99,7 @@ func TestMetricsCatalogScanWithDB(t *testing.T) {
 			Metric:    "cpu.usage",
 			Tags:      map[string]string{"host": "server1"},
 			Value:     float64(50 + i),
-			Timestamp: now + int64(i*int(time.Second)),
+			Timestamp: now + int64(i)*int64(time.Second),
 		})
 	}
 	for i := 0; i < 10; i++ {
@@ -107,7 +107,7 @@ func TestMetricsCatalogScanWithDB(t *testing.T) {
 			Metric:    "mem.bytes",
 			Tags:      map[string]string{"host": "server1"},
 			Value:     float64(1024 * (i + 1)),
-			Timestamp: now + int64(i*int(time.Second)),
+			Timestamp: now + int64(i)*int64(time.Second),
 		})
 	}
 	_ = db.Flush()
