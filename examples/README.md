@@ -64,6 +64,19 @@ Features demonstrated:
 - Native histograms with percentiles
 - Alerting rules
 
+
+### [docker-compose-monitoring](./docker-compose-monitoring)
+Full monitoring stack: Chronicle + Prometheus + Alertmanager + Grafana.
+
+```bash
+cd docker-compose-monitoring && docker compose up --build
+```
+
+Features demonstrated:
+- Compose healthchecks and metric generator
+- Prometheus scrape + alert rules
+- Grafana datasource/dashboard provisioning
+
 ### [plugin](./plugin)
 Custom plugin development with aggregator and transformer plugins.
 

@@ -1,0 +1,27 @@
+{
+  "title": "Chronicle Monitoring Stack",
+  "uid": "chronicle-compose-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Target Up",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "up{job=\"chronicle\"}", "legendFormat": "chronicle", "refId": "A"}
+      ],
+      "datasource": {"type": "prometheus", "uid": "Prometheus"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus scrape samples",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "rate(prometheus_tsdb_head_samples_appended_total[1m])", "legendFormat": "samples/s", "refId": "A"}
+      ],
+      "datasource": {"type": "prometheus", "uid": "Prometheus"}
+    }
+  ]
+}
