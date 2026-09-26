@@ -1,18 +1,14 @@
-version: "3.9"
-
 services:
   chronicle:
     build:
       context: ../..
-      dockerfile: k8s/Dockerfile
+      dockerfile: examples/docker-compose-monitoring/Dockerfile
     ports:
-      - "8086:8086"
+      - "127.0.0.1:8086:8086"
     volumes:
       - chronicle-data:/data
-    environment:
-      CHRONICLE_DATA_DIR: /data
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8086/health"]
+      test: ["CMD", "/chronicle-compose", "health"]
       interval: 5s
       timeout: 3s
       retries: 8
@@ -21,7 +17,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.55.1
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -29,7 +25,6 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
-      - --web.enable-lifecycle
     depends_on:
       chronicle:
         condition: service_healthy
@@ -37,16 +32,14 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    depends_on:
-      - prometheus
 
   grafana:
     image: grafana/grafana:11.5.2
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: chronicle
@@ -60,7 +53,7 @@ services:
       - prometheus
       - chronicle
 
-  # Optional metric generator so the stack is non-empty out of the box.
+  # Writes sample points so the scrape's metric-count gauge becomes nonzero.
   metric-gen:
     image: public.ecr.aws/docker/library/busybox:1.36
     depends_on:
@@ -73,8 +66,8 @@ services:
         i=0
         while true; do
           i=$$((i+1))
-          VAL=$$((20 + i % 15))
-          wget -qO- --post-data="demo_cpu_percent{host=\"compose\",env=\"dev\"} $$VAL" \
+          val=$$((20 + i % 15))
+          wget -qO- --post-data="demo_cpu_percent,host=compose,env=dev value=$$val" \
             http://chronicle:8086/write || true
           sleep 5
         done

@@ -10,11 +10,11 @@ groups:
           summary: "Chronicle scrape target is down"
           description: "Prometheus cannot scrape Chronicle at {{ $labels.instance }}."
 
-      - alert: ChronicleHighScrapeFailures
-        expr: increase(chronicle_sidecar_scrape_errors[5m]) > 5
-        for: 2m
+      - alert: ChronicleNoSampleData
+        expr: chronicle_metric_count{job="chronicle"} == 0
+        for: 1m
         labels:
           severity: warning
         annotations:
-          summary: "Elevated Chronicle scrape errors"
-          description: "Scrape errors increased by {{ $value }} over 5m."
+          summary: "No sample metrics have been ingested"
+          description: "The example generator has not written a Chronicle metric."

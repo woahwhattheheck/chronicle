@@ -2,14 +2,13 @@ global:
   resolve_timeout: 5m
 
 route:
-  receiver: default
+  receiver: local-ui
   group_by: ["alertname", "severity"]
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 2h
 
+# Alerts remain visible in Alertmanager's UI. Add a receiver before expecting
+# external notifications; the example does not point to a nonexistent webhook.
 receivers:
-  - name: default
-    webhook_configs:
-      - url: http://127.0.0.1:5001/
-        send_resolved: true
+  - name: local-ui
