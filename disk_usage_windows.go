@@ -10,20 +10,10 @@ import (
 
 // diskUsage returns free and total bytes for the filesystem containing path.
 func diskUsage(path string) (free uint64, total uint64, err error) {
-	dir := filepath.VolumeName(path)
-	if dir == "" {
-		abs, absErr := filepath.Abs(path)
-		if absErr == nil {
-			dir = filepath.VolumeName(abs)
-			if dir == "" {
-				dir = filepath.Dir(abs)
-			}
-		} else {
-			dir = filepath.Dir(path)
-		}
-	}
-	if dir == "" {
-		dir = "."
+	// Check the existing parent directory so relative paths and UNC shares work.
+	dir, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return 0, 0, err
 	}
 
 	ptr, err := windows.UTF16PtrFromString(dir)
