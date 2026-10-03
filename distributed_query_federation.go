@@ -189,6 +189,15 @@ func (pp *PredicatePushDown) CreateRemoteQuery(q *Query, pushable []PushablePred
 		Start:  q.Start,
 		End:    q.End,
 	}
+	type filterKey struct{ key, value string }
+	availableFilters := make(map[filterKey][]TagFilter)
+	for _, tf := range q.TagFilters {
+		switch tf.Op {
+		case TagOpEq, TagOpNotEq, TagOpIn, TagOpNotIn:
+			key := filterKey{tf.Key, strings.Join(tf.Values, ",")}
+			availableFilters[key] = append(availableFilters[key], tf)
+		}
+	}
 	for _, p := range pushable {
 		switch p.Kind {
 		case FedPredicateTagEquality:
@@ -197,11 +206,16 @@ func (pp *PredicatePushDown) CreateRemoteQuery(q *Query, pushable []PushablePred
 			}
 			remote.Tags[p.Field] = p.Value
 		case FedPredicateTagFilter:
-			for _, tf := range q.TagFilters {
-				if tf.Key == p.Field {
-					remote.TagFilters = append(remote.TagFilters, tf)
-					break
-				}
+			if !p.Safe {
+				continue
+			}
+			// Analysis emits one predicate per eligible filter in source order.
+			// Consume each matching occurrence once so same-key exclusions are
+			// not replaced by the first inclusion or a local-only regex.
+			key := filterKey{p.Field, p.Value}
+			if filters := availableFilters[key]; len(filters) > 0 {
+				remote.TagFilters = append(remote.TagFilters, filters[0])
+				availableFilters[key] = filters[1:]
 			}
 		case FedPredicateAggregation:
 			if q.Aggregation != nil {

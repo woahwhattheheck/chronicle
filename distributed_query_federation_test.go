@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -238,6 +239,74 @@ func TestPredicatePushDown_CreateRemoteQuery(t *testing.T) {
 		}
 		if remote.TagFilters[0].Key != "region" {
 			t.Fatalf("expected tag filter key=region, got %s", remote.TagFilters[0].Key)
+		}
+	})
+
+	t.Run("same-key filters retain distinct operators and values", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			filters []TagFilter
+		}{
+			{
+				name: "membership and exclusion",
+				filters: []TagFilter{
+					{Key: "host", Op: TagOpIn, Values: []string{"web-1", "db-1"}},
+					{Key: "host", Op: TagOpNotIn, Values: []string{"web-1"}},
+				},
+			},
+			{
+				name: "same values with opposite operators",
+				filters: []TagFilter{
+					{Key: "host", Op: TagOpIn, Values: []string{"web-1"}},
+					{Key: "host", Op: TagOpNotIn, Values: []string{"web-1"}},
+				},
+			},
+			{
+				name: "separate exclusions",
+				filters: []TagFilter{
+					{Key: "host", Op: TagOpNotIn, Values: []string{"web-1"}},
+					{Key: "host", Op: TagOpNotIn, Values: []string{"web-2"}},
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				q := &Query{Metric: "cpu", TagFilters: tc.filters}
+				analysis := pp.AnalyzePredicates(q)
+				remote := pp.CreateRemoteQuery(q, analysis.Pushable)
+				if !reflect.DeepEqual(remote.TagFilters, q.TagFilters) {
+					t.Fatalf("pushed filters changed: got %#v, want %#v", remote.TagFilters, q.TagFilters)
+				}
+			})
+		}
+	})
+
+	t.Run("same-key local regex does not replace an exclusion", func(t *testing.T) {
+		q := &Query{
+			Metric: "cpu",
+			TagFilters: []TagFilter{
+				{Key: "host", Op: TagOpRegex, Values: []string{"web-1"}},
+				{Key: "host", Op: TagOpNotIn, Values: []string{"web-1"}},
+			},
+		}
+		analysis := pp.AnalyzePredicates(q)
+		remote := pp.CreateRemoteQuery(q, analysis.Pushable)
+		if !reflect.DeepEqual(remote.TagFilters, q.TagFilters[1:]) {
+			t.Fatalf("pushed filters changed: got %#v, want %#v", remote.TagFilters, q.TagFilters[1:])
+		}
+	})
+
+	t.Run("selected value does not pick another same-key filter", func(t *testing.T) {
+		q := &Query{
+			Metric: "cpu",
+			TagFilters: []TagFilter{
+				{Key: "host", Op: TagOpIn, Values: []string{"web-1", "db-1"}},
+				{Key: "host", Op: TagOpNotIn, Values: []string{"web-1"}},
+			},
+		}
+		analysis := pp.AnalyzePredicates(q)
+		remote := pp.CreateRemoteQuery(q, analysis.Pushable[1:])
+		if !reflect.DeepEqual(remote.TagFilters, q.TagFilters[1:]) {
+			t.Fatalf("pushed filters changed: got %#v, want %#v", remote.TagFilters, q.TagFilters[1:])
 		}
 	})
 
@@ -766,18 +835,18 @@ func TestQueryFederationEngine_ExplainFederated(t *testing.T) {
 	engine := NewQueryFederationEngine(db, fedCfg)
 
 	engine.RegisterNode(FederationNodeInfo{
-		NodeID:  "n1",
-		Address: "http://node1:8080",
-		Metrics: []string{"cpu"},
+		NodeID:     "n1",
+		Address:    "http://node1:8080",
+		Metrics:    []string{"cpu"},
 		TimeRanges: []TimeRange{{Start: 100, End: 500}},
-		Healthy: true,
+		Healthy:    true,
 	})
 	engine.RegisterNode(FederationNodeInfo{
-		NodeID:  "n2",
-		Address: "http://node2:8080",
-		Metrics: []string{"cpu"},
+		NodeID:     "n2",
+		Address:    "http://node2:8080",
+		Metrics:    []string{"cpu"},
 		TimeRanges: []TimeRange{{Start: 300, End: 800}},
-		Healthy: true,
+		Healthy:    true,
 	})
 
 	q := &Query{
