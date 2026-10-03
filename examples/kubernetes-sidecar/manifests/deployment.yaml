@@ -18,16 +18,32 @@ spec:
         chronicle.io/port: "9090"
         chronicle.io/path: "/metrics"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
       containers:
-        # Replace this container with your workload that exposes Prometheus
-        # text metrics on :9090/metrics. For a local end-to-end demo without a
-        # cluster, run `go run .` in this directory instead.
+        # Both containers use the example binary, running separate components.
+        # Build and load this image before applying the manifests (see README).
         - name: demo-app
-          image: public.ecr.aws/docker/library/busybox:1.36
-          command: ["sh", "-c", "echo 'replace demo-app with your metrics-emitting image'; sleep 3600"]
+          image: chronicle-kubernetes-sidecar:local
+          imagePullPolicy: IfNotPresent
+          args:
+            - -mode=app
+            - -metrics-port=$(metrics_port)
+            - -metrics-path=$(metrics_path)
+          envFrom:
+            - configMapRef:
+                name: chronicle-sidecar-config
           ports:
             - name: metrics
               containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            periodSeconds: 5
           resources:
             requests:
               cpu: 50m
@@ -36,8 +52,20 @@ spec:
               cpu: 200m
               memory: 128Mi
         - name: chronicle-sidecar
-          image: ghcr.io/chronicle-db/chronicle:latest
-          args: ["serve", "--data-dir", "/data"]
+          image: chronicle-kubernetes-sidecar:local
+          imagePullPolicy: IfNotPresent
+          args:
+            - -mode=sidecar
+            - -data-dir=/data
+            - -metrics-port=$(metrics_port)
+            - -metrics-path=$(metrics_path)
+            - -scrape-interval=$(scrape_interval)
+            - -scrape-timeout=$(scrape_timeout)
+            - -health-port=$(health_port)
+            - -retention=$(retention)
+          envFrom:
+            - configMapRef:
+                name: chronicle-sidecar-config
           ports:
             - name: health
               containerPort: 8080
@@ -60,19 +88,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: CHRONICLE_SIDECAR
-              value: "true"
-            - name: CHRONICLE_SCRAPE_PORT
-              value: "9090"
-            - name: CHRONICLE_SCRAPE_PATH
-              value: "/metrics"
-            - name: CHRONICLE_DATA_DIR
-              value: /data
           volumeMounts:
             - name: chronicle-data
               mountPath: /data
             - name: podinfo
               mountPath: /etc/podinfo
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /health
