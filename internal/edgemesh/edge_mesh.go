@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 
@@ -563,7 +564,7 @@ func (m *EdgeMesh) performGossip() {
 	}
 
 	for i := len(peers) - 1; i > 0; i-- {
-		j := int(time.Now().UnixNano()) % (i + 1)
+		j := rand.IntN(i + 1)
 		peers[i], peers[j] = peers[j], peers[i]
 	}
 

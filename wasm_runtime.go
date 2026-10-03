@@ -139,9 +139,9 @@ type WASMPlugin struct {
 	instance    WASMInstance
 	loadedAt    time.Time
 	lastExec    time.Time
-	execCount   int64
-	errorCount  int64
-	totalExecNs int64
+	execCount   atomic.Int64
+	errorCount  atomic.Int64
+	totalExecNs atomic.Int64
 	mu          sync.Mutex
 }
 
@@ -317,7 +317,7 @@ func (rt *WASMRuntime) ExecPlugin(ctx context.Context, name, funcName string, ar
 		inst, err := plugin.module.Instantiate(ctx, nil)
 		if err != nil {
 			plugin.state = WASMPluginStateError
-			atomic.AddInt64(&plugin.errorCount, 1)
+			plugin.errorCount.Add(1)
 			return nil, fmt.Errorf("wasm: instantiate failed: %w", err)
 		}
 		plugin.instance = inst
@@ -341,11 +341,11 @@ func (rt *WASMRuntime) ExecPlugin(ctx context.Context, name, funcName string, ar
 	elapsed := time.Since(start)
 
 	plugin.lastExec = time.Now()
-	atomic.AddInt64(&plugin.execCount, 1)
-	atomic.AddInt64(&plugin.totalExecNs, elapsed.Nanoseconds())
+	plugin.execCount.Add(1)
+	plugin.totalExecNs.Add(elapsed.Nanoseconds())
 
 	if err != nil {
-		atomic.AddInt64(&plugin.errorCount, 1)
+		plugin.errorCount.Add(1)
 		plugin.state = WASMPluginStateReady
 		return nil, fmt.Errorf("wasm: exec %s.%s failed: %w", name, funcName, err)
 	}
@@ -364,8 +364,8 @@ func (rt *WASMRuntime) GetPlugin(name string) (*WASMPluginInfo, error) {
 		return nil, fmt.Errorf("wasm: plugin %q not found", name)
 	}
 
-	execCount := atomic.LoadInt64(&plugin.execCount)
-	totalNs := atomic.LoadInt64(&plugin.totalExecNs)
+	execCount := plugin.execCount.Load()
+	totalNs := plugin.totalExecNs.Load()
 	var avgMs float64
 	if execCount > 0 {
 		avgMs = float64(totalNs) / float64(execCount) / 1e6
@@ -377,7 +377,7 @@ func (rt *WASMRuntime) GetPlugin(name string) (*WASMPluginInfo, error) {
 		LoadedAt:    plugin.loadedAt,
 		LastExecAt:  plugin.lastExec,
 		ExecCount:   execCount,
-		ErrorCount:  atomic.LoadInt64(&plugin.errorCount),
+		ErrorCount:  plugin.errorCount.Load(),
 		AvgExecMs:   avgMs,
 		Permissions: plugin.config.Permissions,
 	}, nil
@@ -390,8 +390,8 @@ func (rt *WASMRuntime) ListPlugins() []WASMPluginInfo {
 
 	infos := make([]WASMPluginInfo, 0, len(rt.plugins))
 	for _, plugin := range rt.plugins {
-		execCount := atomic.LoadInt64(&plugin.execCount)
-		totalNs := atomic.LoadInt64(&plugin.totalExecNs)
+		execCount := plugin.execCount.Load()
+		totalNs := plugin.totalExecNs.Load()
 		var avgMs float64
 		if execCount > 0 {
 			avgMs = float64(totalNs) / float64(execCount) / 1e6
@@ -401,7 +401,7 @@ func (rt *WASMRuntime) ListPlugins() []WASMPluginInfo {
 			State:       plugin.state,
 			LoadedAt:    plugin.loadedAt,
 			ExecCount:   execCount,
-			ErrorCount:  atomic.LoadInt64(&plugin.errorCount),
+			ErrorCount:  plugin.errorCount.Load(),
 			AvgExecMs:   avgMs,
 			Permissions: plugin.config.Permissions,
 		})

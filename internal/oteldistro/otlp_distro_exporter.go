@@ -12,8 +12,8 @@ import (
 type otlpExporterState struct {
 	mu       sync.Mutex
 	buffer   [][]byte
-	exported int64
-	failed   int64
+	exported atomic.Int64
+	failed   atomic.Int64
 }
 
 func (e *OTLPDistroExporter) Start(ctx context.Context, host Host) error { return nil }
@@ -34,7 +34,7 @@ func (e *OTLPDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
-		atomic.AddInt64(&e.state.failed, 1)
+		e.state.failed.Add(1)
 		return fmt.Errorf("failed to serialize metrics: %w", err)
 	}
 
@@ -42,7 +42,7 @@ func (e *OTLPDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics
 	e.state.buffer = append(e.state.buffer, data)
 	e.state.mu.Unlock()
 
-	atomic.AddInt64(&e.state.exported, 1)
+	e.state.exported.Add(1)
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -276,6 +277,51 @@ func TestHWAccelStats(t *testing.T) {
 	}
 	if len(stats.OperationsByType) != 3 {
 		t.Errorf("expected 3 operation types, got %d", len(stats.OperationsByType))
+	}
+}
+
+func TestHWAccelConcurrentStats(t *testing.T) {
+	engine := NewHWAcceleratedQueryEngine(nil, DefaultHWAcceleratedQueryConfig())
+	const workers, iterations = 8, 100
+	data := []float64{1, 2, 3, 4}
+	predicates := []ScanPredicate{{Type: PredicateValueRange, ValueMin: 2, ValueMax: 3}}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			var previous int64
+			for range iterations {
+				if got := engine.SumFloat64(data); got != 10 {
+					t.Errorf("SumFloat64 = %v, want 10", got)
+				}
+				result := engine.VectorizedScan(data, nil, predicates)
+				if result.RowCount != 2 || result.BytesRead != 32 {
+					t.Errorf("VectorizedScan = %+v, want 2 rows and 32 bytes read", result)
+				}
+				stats := engine.Stats()
+				if stats.QueriesAccelerated < previous {
+					t.Errorf("query count decreased from %d to %d", previous, stats.QueriesAccelerated)
+				}
+				previous = stats.QueriesAccelerated
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	stats := engine.Stats()
+	const calls = workers * iterations
+	if stats.QueriesAccelerated != 2*calls || stats.TotalDataProcessed != 8*calls {
+		t.Errorf("unexpected concurrent totals: %+v", stats)
+	}
+	if stats.OperationsByType["Sum"] != calls {
+		t.Errorf("Sum count = %d, want %d", stats.OperationsByType["Sum"], calls)
+	}
+	if stats.AvgSpeedup != 1 {
+		t.Errorf("AvgSpeedup = %v, want 1 without a benchmark baseline", stats.AvgSpeedup)
 	}
 }
 

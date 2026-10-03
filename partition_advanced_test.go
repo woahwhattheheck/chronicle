@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -26,6 +27,35 @@ func TestHashPartitioner(t *testing.T) {
 	}
 }
 
+func TestHashPartitioner_KnownBuckets(t *testing.T) {
+	// These FNV-1a mappings are the same on 32-bit and 64-bit platforms.
+	// "cpu" (0xf94af989) and "memory" (0x84e9f1ae) have the high bit set.
+	for _, tt := range []struct {
+		metric     string
+		partitions int
+		want       int
+	}{
+		{"cpu", 3, 1},
+		{"memory", 3, 0},
+		{"disk", 3, 0},
+		{"network", 3, 2},
+		{"cpu", 7, 4},
+		{"cpu_usage", 16, 13},
+		{"", 257, 196},
+	} {
+		if got := NewHashPartitioner(tt.partitions).Partition(tt.metric); got != tt.want {
+			t.Errorf("Partition(%q) with %d buckets = %d, want %d", tt.metric, tt.partitions, got, tt.want)
+		}
+	}
+	if strconv.IntSize == 64 {
+		// Do not truncate a valid 64-bit partition count to uint32.
+		count := uint64(1)<<32 + 1
+		if got := NewHashPartitioner(int(count)).Partition("cpu"); uint64(got) != 4182440329 {
+			t.Errorf("Partition(cpu) with %d buckets = %d, want 4182440329", count, got)
+		}
+	}
+}
+
 func TestHashPartitioner_PartitionPoints(t *testing.T) {
 	hp := NewHashPartitioner(3)
 	points := []Point{
@@ -42,8 +72,19 @@ func TestHashPartitioner_PartitionPoints(t *testing.T) {
 
 	// Total points should be preserved
 	total := 0
-	for _, b := range buckets {
+	wantBuckets := map[string]int{"cpu": 1, "memory": 0, "disk": 0}
+	seen := make(map[float64]bool)
+	for index, b := range buckets {
 		total += len(b)
+		for _, point := range b {
+			if want, ok := wantBuckets[point.Metric]; !ok || index != want {
+				t.Errorf("metric %q in bucket %d, want %d", point.Metric, index, want)
+			}
+			if seen[point.Value] {
+				t.Errorf("point value %v appears more than once", point.Value)
+			}
+			seen[point.Value] = true
+		}
 	}
 	if total != 4 {
 		t.Fatalf("expected 4 total points, got %d", total)

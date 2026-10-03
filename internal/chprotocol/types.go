@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	chronicle "github.com/chronicle-db/chronicle"
@@ -116,11 +117,11 @@ type CHNativeServer struct {
 	running  bool
 	shutdown chan struct{}
 
-	// Stats
-	totalConnections int64
-	activeConns      int64
-	totalQueries     int64
-	queryErrors      int64
+	// Typed atomics keep the counters aligned on 32-bit platforms.
+	totalConnections atomic.Int64
+	activeConns      atomic.Int64
+	totalQueries     atomic.Int64
+	queryErrors      atomic.Int64
 }
 
 // NewCHNativeServer creates a new ClickHouse protocol server

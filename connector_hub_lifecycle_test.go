@@ -1,9 +1,11 @@
 package chronicle
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 )
 
 // mockConnectorDriver implements ConnectorDriver for testing.
@@ -12,19 +14,23 @@ type mockConnectorDriver struct {
 	name     string
 	connType ConnectorType
 	initErr  error
+	writeErr error
 	healthy  bool
 	written  []Point
 	closed   bool
 }
 
 func (m *mockConnectorDriver) Name() string        { return m.name }
-func (m *mockConnectorDriver) Type() ConnectorType  { return m.connType }
+func (m *mockConnectorDriver) Type() ConnectorType { return m.connType }
 func (m *mockConnectorDriver) Initialize(config map[string]string) error {
 	return m.initErr
 }
 func (m *mockConnectorDriver) Write(points []Point) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.writeErr != nil {
+		return m.writeErr
+	}
 	m.written = append(m.written, points...)
 	return nil
 }
@@ -225,6 +231,109 @@ func TestConnectorHubGetConnector(t *testing.T) {
 	conn2, _ := hub.GetConnector("nonexistent")
 	if conn2 != nil {
 		t.Error("Expected nil for nonexistent connector")
+	}
+}
+
+func TestConnectorHubSinkFlushStats(t *testing.T) {
+	for _, failWrite := range []bool{false, true} {
+		name := "success"
+		if failWrite {
+			name = "failure_then_retry"
+		}
+		t.Run(name, func(t *testing.T) {
+			hub := newTestConnectorHub(t)
+			const metric, connector = "sink_test", "stats_sink"
+			writeTestPoints(t, hub.db, metric, 3, time.Now().Add(-time.Minute))
+			if err := hub.CreateConnector(ConnectorConfig{
+				Name: connector, Type: ConnectorTypeSink, Driver: "mock", BatchSize: 10,
+				Filters: ConnectorFilters{IncludeMetrics: []string{metric}},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			initial, ok := hub.GetConnector(connector)
+			if !ok {
+				t.Fatal("connector not found")
+			}
+			initialList := hub.ListConnectors()
+			hub.mu.RLock()
+			inst := hub.connectors[connector]
+			hub.mu.RUnlock()
+			driver := &mockConnectorDriver{}
+			if failWrite {
+				driver.writeErr = fmt.Errorf("sink rejected batch")
+				hub.sinkFlush(connector, driver, inst)
+				failed, _ := hub.GetConnector(connector)
+				if failed.Stats != (ConnectorInstanceStats{RecordsFailed: 3}) || failed.LastError != "sink rejected batch" {
+					t.Fatalf("unexpected failed flush: %+v", failed)
+				}
+				letters := hub.ListDeadLetters(10)
+				if len(letters) != 3 {
+					t.Fatalf("dead letter count = %d, want 3", len(letters))
+				}
+				for _, letter := range letters {
+					if letter.ConnectorName != connector || letter.Point.Metric != metric || letter.Error != "sink rejected batch" {
+						t.Errorf("unexpected dead letter: %+v", letter)
+					}
+				}
+				driver.mu.Lock()
+				driver.writeErr = nil
+				driver.mu.Unlock()
+			}
+
+			before := time.Now().UnixNano()
+			hub.sinkFlush(connector, driver, inst)
+			after := time.Now().UnixNano()
+			snapshot, _ := hub.GetConnector(connector)
+			want := ConnectorInstanceStats{
+				RecordsProcessed: 3, BatchesSent: 1, LastActivityAt: snapshot.Stats.LastActivityAt,
+			}
+			if failWrite {
+				want.RecordsFailed = 3
+			}
+			if snapshot.Stats != want || snapshot.Stats.LastActivityAt < before || snapshot.Stats.LastActivityAt > after {
+				t.Fatalf("unexpected successful flush stats: %+v", snapshot.Stats)
+			}
+			listed := hub.ListConnectors()
+			if len(listed) != 1 || listed[0].Stats != snapshot.Stats {
+				t.Fatalf("list and get statistics differ: %+v", listed)
+			}
+			if initial.Stats != (ConnectorInstanceStats{}) || len(initialList) != 1 || initialList[0].Stats != (ConnectorInstanceStats{}) {
+				t.Error("an earlier connector snapshot changed after flushing")
+			}
+			// The checkpoint excludes the already-sent points on the next flush.
+			hub.sinkFlush(connector, driver, inst)
+			unchanged, _ := hub.GetConnector(connector)
+			if unchanged.Stats != snapshot.Stats {
+				t.Errorf("empty flush changed statistics: %+v", unchanged.Stats)
+			}
+			driver.mu.Lock()
+			written := append([]Point(nil), driver.written...)
+			driver.mu.Unlock()
+			if len(written) != 3 {
+				t.Fatalf("written point count = %d, want 3", len(written))
+			}
+			seen := make(map[float64]bool)
+			for _, point := range written {
+				if point.Metric != metric || point.Value < 0 || point.Value > 2 || seen[point.Value] {
+					t.Errorf("unexpected or duplicate written point: %+v", point)
+				}
+				seen[point.Value] = true
+			}
+			encoded, err := json.Marshal(snapshot.Stats)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded ConnectorInstanceStats
+			if err := json.Unmarshal(encoded, &decoded); err != nil || decoded != snapshot.Stats {
+				t.Fatalf("statistics JSON changed numeric values: %s (%v)", encoded, err)
+			}
+			snapshot.Stats.RecordsProcessed = 99
+			snapshot.Status = ConnectorStatusFailed
+			fresh, _ := hub.GetConnector(connector)
+			if fresh.Stats != want || fresh.Status != ConnectorStatusStopped {
+				t.Error("editing a returned snapshot changed the connector")
+			}
+		})
 	}
 }
 

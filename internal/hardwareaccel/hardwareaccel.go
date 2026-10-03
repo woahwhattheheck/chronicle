@@ -183,13 +183,32 @@ type HardwareAccelSDK struct {
 	filterKernel      AcceleratorKernel
 
 	// Stats
-	stats HardwareAccelStats
+	stats hardwareAccelCounters
 
 	// Async operation tracking
 	pendingOps sync.WaitGroup
 
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+// hardwareAccelCounters keeps live counters aligned on 32-bit platforms.
+// Stats loads them into the copyable HardwareAccelStats snapshot.
+type hardwareAccelCounters struct {
+	gpuOperations      atomic.Int64
+	fpgaOperations     atomic.Int64
+	simdOperations     atomic.Int64
+	cpuFallbacks       atomic.Int64
+	gpuBytesProcessed  atomic.Int64
+	fpgaBytesProcessed atomic.Int64
+	simdBytesProcessed atomic.Int64
+	totalGPUTimeNs     atomic.Int64
+	totalFPGATimeNs    atomic.Int64
+	totalSIMDTimeNs    atomic.Int64
+	gpuMemoryUsed      atomic.Int64
+	fpgaMemoryUsed     atomic.Int64
+	gpuErrors          atomic.Int64
+	fpgaErrors         atomic.Int64
 }
 
 // HardwareAccelStats contains acceleration statistics.
@@ -384,35 +403,35 @@ func (sdk *HardwareAccelSDK) CompressAccelerated(data []float64) ([]byte, error)
 	case AcceleratorGPU:
 		result, err = sdk.compressGPU(data)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.GPUOperations, 1)
-			atomic.AddInt64(&sdk.stats.GPUBytesProcessed, int64(len(data)*8))
-			atomic.AddInt64(&sdk.stats.TotalGPUTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.gpuOperations.Add(1)
+			sdk.stats.gpuBytesProcessed.Add(int64(len(data) * 8))
+			sdk.stats.totalGPUTimeNs.Add(time.Since(start).Nanoseconds())
 		} else {
-			atomic.AddInt64(&sdk.stats.GPUErrors, 1)
+			sdk.stats.gpuErrors.Add(1)
 			if sdk.config.FallbackToCPU {
 				result, err = sdk.compressCPU(data)
-				atomic.AddInt64(&sdk.stats.CPUFallbacks, 1)
+				sdk.stats.cpuFallbacks.Add(1)
 			}
 		}
 	case AcceleratorFPGA:
 		result, err = sdk.compressFPGA(data)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.FPGAOperations, 1)
-			atomic.AddInt64(&sdk.stats.FPGABytesProcessed, int64(len(data)*8))
-			atomic.AddInt64(&sdk.stats.TotalFPGATimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.fpgaOperations.Add(1)
+			sdk.stats.fpgaBytesProcessed.Add(int64(len(data) * 8))
+			sdk.stats.totalFPGATimeNs.Add(time.Since(start).Nanoseconds())
 		} else {
-			atomic.AddInt64(&sdk.stats.FPGAErrors, 1)
+			sdk.stats.fpgaErrors.Add(1)
 			if sdk.config.FallbackToCPU {
 				result, err = sdk.compressCPU(data)
-				atomic.AddInt64(&sdk.stats.CPUFallbacks, 1)
+				sdk.stats.cpuFallbacks.Add(1)
 			}
 		}
 	case AcceleratorSIMD:
 		result, err = sdk.compressSIMD(data)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.SIMDOperations, 1)
-			atomic.AddInt64(&sdk.stats.SIMDBytesProcessed, int64(len(data)*8))
-			atomic.AddInt64(&sdk.stats.TotalSIMDTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.simdOperations.Add(1)
+			sdk.stats.simdBytesProcessed.Add(int64(len(data) * 8))
+			sdk.stats.totalSIMDTimeNs.Add(time.Since(start).Nanoseconds())
 		}
 	default:
 		result, err = sdk.compressCPU(data)
@@ -437,17 +456,17 @@ func (sdk *HardwareAccelSDK) DecompressAccelerated(data []byte, count int) ([]fl
 	case AcceleratorGPU:
 		result, err = sdk.decompressGPU(data, count)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.GPUOperations, 1)
-			atomic.AddInt64(&sdk.stats.TotalGPUTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.gpuOperations.Add(1)
+			sdk.stats.totalGPUTimeNs.Add(time.Since(start).Nanoseconds())
 		} else if sdk.config.FallbackToCPU {
 			result, err = sdk.decompressCPU(data, count)
-			atomic.AddInt64(&sdk.stats.CPUFallbacks, 1)
+			sdk.stats.cpuFallbacks.Add(1)
 		}
 	case AcceleratorSIMD:
 		result, err = sdk.decompressSIMD(data, count)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.SIMDOperations, 1)
-			atomic.AddInt64(&sdk.stats.TotalSIMDTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.simdOperations.Add(1)
+			sdk.stats.totalSIMDTimeNs.Add(time.Since(start).Nanoseconds())
 		}
 	default:
 		result, err = sdk.decompressCPU(data, count)
@@ -472,19 +491,19 @@ func (sdk *HardwareAccelSDK) AggregateAccelerated(op AggregateOp, data []float64
 	case AcceleratorGPU:
 		result, err = sdk.aggregateGPU(op, data)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.GPUOperations, 1)
-			atomic.AddInt64(&sdk.stats.GPUBytesProcessed, int64(len(data)*8))
-			atomic.AddInt64(&sdk.stats.TotalGPUTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.gpuOperations.Add(1)
+			sdk.stats.gpuBytesProcessed.Add(int64(len(data) * 8))
+			sdk.stats.totalGPUTimeNs.Add(time.Since(start).Nanoseconds())
 		} else if sdk.config.FallbackToCPU {
 			result, err = sdk.aggregateCPU(op, data)
-			atomic.AddInt64(&sdk.stats.CPUFallbacks, 1)
+			sdk.stats.cpuFallbacks.Add(1)
 		}
 	case AcceleratorSIMD:
 		result, err = sdk.aggregateSIMD(op, data)
 		if err == nil {
-			atomic.AddInt64(&sdk.stats.SIMDOperations, 1)
-			atomic.AddInt64(&sdk.stats.SIMDBytesProcessed, int64(len(data)*8))
-			atomic.AddInt64(&sdk.stats.TotalSIMDTimeNs, time.Since(start).Nanoseconds())
+			sdk.stats.simdOperations.Add(1)
+			sdk.stats.simdBytesProcessed.Add(int64(len(data) * 8))
+			sdk.stats.totalSIMDTimeNs.Add(time.Since(start).Nanoseconds())
 		}
 	default:
 		result, err = sdk.aggregateCPU(op, data)
@@ -582,20 +601,19 @@ func (sdk *HardwareAccelSDK) FFTAccelerated(data []float64) ([]complex128, error
 // Stats returns acceleration statistics.
 func (sdk *HardwareAccelSDK) Stats() HardwareAccelStats {
 	return HardwareAccelStats{
-		GPUOperations:      atomic.LoadInt64(&sdk.stats.GPUOperations),
-		FPGAOperations:     atomic.LoadInt64(&sdk.stats.FPGAOperations),
-		SIMDOperations:     atomic.LoadInt64(&sdk.stats.SIMDOperations),
-		CPUFallbacks:       atomic.LoadInt64(&sdk.stats.CPUFallbacks),
-		GPUBytesProcessed:  atomic.LoadInt64(&sdk.stats.GPUBytesProcessed),
-		FPGABytesProcessed: atomic.LoadInt64(&sdk.stats.FPGABytesProcessed),
-		SIMDBytesProcessed: atomic.LoadInt64(&sdk.stats.SIMDBytesProcessed),
-		TotalGPUTimeNs:     atomic.LoadInt64(&sdk.stats.TotalGPUTimeNs),
-		TotalFPGATimeNs:    atomic.LoadInt64(&sdk.stats.TotalFPGATimeNs),
-		TotalSIMDTimeNs:    atomic.LoadInt64(&sdk.stats.TotalSIMDTimeNs),
-		GPUMemoryUsed:      atomic.LoadInt64(&sdk.stats.GPUMemoryUsed),
-		FPGAMemoryUsed:     atomic.LoadInt64(&sdk.stats.FPGAMemoryUsed),
-		GPUErrors:          atomic.LoadInt64(&sdk.stats.GPUErrors),
-		FPGAErrors:         atomic.LoadInt64(&sdk.stats.FPGAErrors),
+		GPUOperations:      sdk.stats.gpuOperations.Load(),
+		FPGAOperations:     sdk.stats.fpgaOperations.Load(),
+		SIMDOperations:     sdk.stats.simdOperations.Load(),
+		CPUFallbacks:       sdk.stats.cpuFallbacks.Load(),
+		GPUBytesProcessed:  sdk.stats.gpuBytesProcessed.Load(),
+		FPGABytesProcessed: sdk.stats.fpgaBytesProcessed.Load(),
+		SIMDBytesProcessed: sdk.stats.simdBytesProcessed.Load(),
+		TotalGPUTimeNs:     sdk.stats.totalGPUTimeNs.Load(),
+		TotalFPGATimeNs:    sdk.stats.totalFPGATimeNs.Load(),
+		TotalSIMDTimeNs:    sdk.stats.totalSIMDTimeNs.Load(),
+		GPUMemoryUsed:      sdk.stats.gpuMemoryUsed.Load(),
+		FPGAMemoryUsed:     sdk.stats.fpgaMemoryUsed.Load(),
+		GPUErrors:          sdk.stats.gpuErrors.Load(),
+		FPGAErrors:         sdk.stats.fpgaErrors.Load(),
 	}
 }
-

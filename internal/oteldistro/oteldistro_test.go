@@ -2,6 +2,8 @@ package oteldistro
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 )
@@ -466,6 +468,67 @@ func TestDistroMetrics(t *testing.T) {
 	}
 }
 
+type failingDistroExporter struct{}
+
+func (failingDistroExporter) Start(context.Context, Host) error { return nil }
+func (failingDistroExporter) Shutdown(context.Context) error    { return nil }
+func (failingDistroExporter) ExportMetrics(context.Context, *Metrics) error {
+	return errors.New("export failed")
+}
+
+func TestDistroMetricsConcurrentSnapshots(t *testing.T) {
+	const workers, perWorker = 4, 50
+	const total = workers * perWorker
+	distro := NewChronicleOTelDistro(nil, OTelDistroConfig{})
+	t.Cleanup(distro.cancel)
+	pipeline := &Pipeline{
+		Name:     "metrics",
+		dataChan: make(chan *Metrics, total),
+		running:  true,
+		Exporters: []OTelExporter{
+			NewOTLPDistroExporter(&OTLPExporterConfig{}),
+			failingDistroExporter{},
+		},
+	}
+	distro.pipelines["metrics"] = pipeline
+	distro.wg.Add(1)
+	go distro.pipelineWorker(pipeline)
+
+	var writers sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		writers.Add(1)
+		go func() {
+			defer writers.Done()
+			for j := 0; j < perWorker; j++ {
+				distro.PushMetrics(&Metrics{})
+				distro.ReportFatalError(errors.New("receiver failed"))
+				snapshot := distro.GetMetrics()
+				if snapshot.Errors < snapshot.MetricsDropped {
+					t.Error("snapshot has a dropped export without its error")
+				}
+			}
+		}()
+	}
+	writers.Wait()
+	close(pipeline.dataChan)
+	distro.wg.Wait()
+
+	snapshot := distro.GetMetrics()
+	for name, got := range map[string]int64{
+		"received":  snapshot.MetricsReceived,
+		"processed": snapshot.MetricsProcessed,
+		"exported":  snapshot.MetricsExported,
+		"dropped":   snapshot.MetricsDropped,
+	} {
+		if got != total {
+			t.Errorf("%s = %d, want %d", name, got, total)
+		}
+	}
+	if snapshot.Errors != 2*total || snapshot.LastError != "receiver failed" {
+		t.Errorf("errors = %d, last error = %q", snapshot.Errors, snapshot.LastError)
+	}
+}
+
 func TestPipelineProcessing(t *testing.T) {
 	pw := &mockPointWriter{}
 
@@ -527,6 +590,23 @@ func TestMemoryLimiterDistroProcessor(t *testing.T) {
 	if result == nil {
 		t.Error("Expected non-nil result")
 	}
+
+	// Exercise the counter without depending on the process's current allocation.
+	config.LimitMiB = 1
+	config.CheckInterval = time.Hour
+	proc.state.mu.Lock()
+	proc.state.memStats.Alloc = 1024 * 1024
+	proc.state.lastCheck = time.Now()
+	proc.state.mu.Unlock()
+	if result, err := proc.ProcessMetrics(ctx, metrics); err == nil || result != nil {
+		t.Fatal("expected metrics to be rejected at the memory limit")
+	}
+	proc.state.mu.Lock()
+	dropped := proc.state.dropped
+	proc.state.mu.Unlock()
+	if dropped != 1 {
+		t.Errorf("dropped = %d, want 1", dropped)
+	}
 }
 
 func TestDebugDistroExporter(t *testing.T) {
@@ -540,6 +620,9 @@ func TestDebugDistroExporter(t *testing.T) {
 	metrics := &Metrics{}
 	if err := exp.ExportMetrics(ctx, metrics); err != nil {
 		t.Fatalf("ExportMetrics failed: %v", err)
+	}
+	if got := exp.state.exportCount.Load(); got != 1 {
+		t.Errorf("export count = %d, want 1", got)
 	}
 }
 
@@ -558,8 +641,21 @@ func TestOTLPDistroExporter(t *testing.T) {
 	defer exp.Shutdown(ctx)
 
 	metrics := &Metrics{}
-	// This will fail without a real endpoint, but shouldn't panic
-	_ = exp.ExportMetrics(ctx, metrics)
+	if err := exp.ExportMetrics(ctx, metrics); err != nil {
+		t.Fatalf("ExportMetrics failed: %v", err)
+	}
+	invalidMetrics := &Metrics{ResourceMetrics: []ResourceMetrics{{
+		ScopeMetrics: []ScopeMetrics{{Metrics: []Metric{{Data: make(chan int)}}}},
+	}}}
+	if err := exp.ExportMetrics(ctx, invalidMetrics); err == nil {
+		t.Fatal("expected a serialization failure")
+	}
+	if got := exp.state.exported.Load(); got != 1 {
+		t.Errorf("exported = %d, want 1", got)
+	}
+	if got := exp.state.failed.Load(); got != 1 {
+		t.Errorf("failed = %d, want 1", got)
+	}
 }
 
 func TestZPagesExtension(t *testing.T) {

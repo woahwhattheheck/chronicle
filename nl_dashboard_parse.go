@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -424,8 +423,8 @@ func (e *NLDashboardEngine) Stats() NLDashboardStats {
 	e.feedbackMu.Unlock()
 
 	return NLDashboardStats{
-		DashboardsGenerated: atomic.LoadInt64(&e.dashboardsGenerated),
-		PanelsGenerated:     atomic.LoadInt64(&e.panelsGenerated),
+		DashboardsGenerated: e.dashboardsGenerated.Load(),
+		PanelsGenerated:     e.panelsGenerated.Load(),
 		DashboardsCached:    dashboardCount,
 		FeedbackReceived:    feedbackCount,
 		AcceptanceRate:      float64(acceptedCount) / float64(max(feedbackCount, 1)),

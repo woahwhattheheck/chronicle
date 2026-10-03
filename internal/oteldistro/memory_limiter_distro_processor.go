@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -46,7 +45,7 @@ func (p *MemoryLimiterDistroProcessor) ProcessMetrics(ctx context.Context, metri
 	if p.config.LimitMiB > 0 {
 		usedMiB := p.state.memStats.Alloc / (1024 * 1024)
 		if usedMiB >= uint64(p.config.LimitMiB) {
-			atomic.AddInt64(&p.state.dropped, 1)
+			p.state.dropped++
 			return nil, fmt.Errorf("memory limit exceeded: %d MiB used, limit %d MiB", usedMiB, p.config.LimitMiB)
 		}
 	}

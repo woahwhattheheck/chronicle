@@ -125,7 +125,7 @@ func (s *ETLPipelineStats) snapshot() *ETLPipelineStats {
 		BytesProcessed:     atomic.LoadInt64(&s.BytesProcessed),
 		Uptime:             time.Since(s.startTime),
 		StageLatencies:     latencies,
-		BackpressureEvents: atomic.LoadUint64(&s.BackpressureEvents),
+		BackpressureEvents: s.BackpressureEvents,
 		LastCheckpoint:     s.LastCheckpoint,
 	}
 }

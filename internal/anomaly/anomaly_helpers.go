@@ -1,10 +1,10 @@
 package anomaly
 
 import (
-"encoding/json"
-"errors"
-"math"
-"time"
+	"encoding/json"
+	"errors"
+	"math"
+	"math/rand/v2"
 )
 
 // ========== Helper Functions ==========
@@ -68,8 +68,7 @@ func randFloat() float64 {
 }
 
 func randInt(max int) int {
-	// Seeded in init() for deterministic testing
-	return int(time.Now().UnixNano()) % max
+	return rand.IntN(max)
 }
 
 func randomMatrix(rows, cols int, scale float64) [][]float64 {

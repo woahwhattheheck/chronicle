@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	randv2 "math/rand/v2"
 	"sync/atomic"
 	"time"
 )
@@ -375,10 +376,8 @@ func (t *LocalTrainer) trainEpoch(batchSize int, learningRate float64) {
 	shuffled := make([]TrainingSample, len(t.trainingSamples))
 	copy(shuffled, t.trainingSamples)
 	for i := range shuffled {
-		j := i + int(time.Now().UnixNano())%(len(shuffled)-i)
-		if j < len(shuffled) {
-			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-		}
+		j := i + randv2.IntN(len(shuffled)-i)
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	}
 
 	// Process in batches

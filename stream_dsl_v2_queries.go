@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -153,7 +152,7 @@ func (e *StreamDSLV2Engine) ListPatterns() []CEPPattern {
 // ProcessEvent feeds an event into all active queries and CEP patterns.
 func (e *StreamDSLV2Engine) ProcessEvent(metric string, value float64, tags map[string]string, ts time.Time) error {
 	start := time.Now()
-	atomic.AddInt64(&e.totalEvents, 1)
+	e.totalEvents.Add(1)
 
 	e.mu.RLock()
 	queries := make([]*DSLV2ContinuousQuery, 0)
@@ -185,7 +184,9 @@ func (e *StreamDSLV2Engine) ProcessEvent(metric string, value float64, tags map[
 		}
 		e.state.add(q.ID, entry)
 
+		e.mu.Lock()
 		q.Stats.EventsProcessed++
+		e.mu.Unlock()
 
 		// For windowed queries, check if window should emit
 		if q.Compiled.Window != nil {
@@ -216,15 +217,15 @@ func (e *StreamDSLV2Engine) ProcessEvent(metric string, value float64, tags map[
 	for _, p := range patterns {
 		for _, ev := range p.Events {
 			if ev.Metric == metric {
-				atomic.AddInt64(&e.patternsMatched, 1)
+				e.patternsMatched.Add(1)
 				break
 			}
 		}
 	}
 
 	elapsed := time.Since(start)
-	atomic.AddInt64(&e.totalLatencyNs, int64(elapsed))
-	atomic.AddInt64(&e.latencyCount, 1)
+	e.totalLatencyNs.Add(int64(elapsed))
+	e.latencyCount.Add(1)
 
 	return nil
 }
@@ -311,10 +312,10 @@ func (e *StreamDSLV2Engine) GetResults(queryID string) []StreamDSLV2Result {
 
 // Stats returns engine-wide statistics.
 func (e *StreamDSLV2Engine) Stats() StreamDSLV2Stats {
-	total := atomic.LoadInt64(&e.totalEvents)
-	matched := atomic.LoadInt64(&e.patternsMatched)
-	totalLat := atomic.LoadInt64(&e.totalLatencyNs)
-	latCount := atomic.LoadInt64(&e.latencyCount)
+	total := e.totalEvents.Load()
+	matched := e.patternsMatched.Load()
+	totalLat := e.totalLatencyNs.Load()
+	latCount := e.latencyCount.Load()
 
 	var avgLat time.Duration
 	if latCount > 0 {

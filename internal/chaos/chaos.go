@@ -65,11 +65,12 @@ type FaultConfig struct {
 
 // ActiveFault represents a currently active fault in the system.
 type ActiveFault struct {
+	// Keep the atomically accessed counter first for 64-bit alignment on ARMv7.
+	TriggerCount int64        `json:"trigger_count"`
 	ID           string       `json:"id"`
 	Config       *FaultConfig `json:"config"`
 	ActivatedAt  time.Time    `json:"activated_at"`
 	DeactivateAt time.Time    `json:"deactivate_at"`
-	TriggerCount int64        `json:"trigger_count"`
 }
 
 // FaultInterceptor is a callback invoked when a fault is triggered.

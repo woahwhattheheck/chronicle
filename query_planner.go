@@ -111,9 +111,10 @@ type PlannerStats struct {
 
 // QueryPlanner provides cost-based query optimization with runtime statistics.
 type QueryPlanner struct {
-	config          QueryPlannerConfig
-	db              *DB
-	queryStats      atomic.Value // stores *QueryStats
+	config     QueryPlannerConfig
+	db         *DB
+	queryStats atomic.Value // stores *QueryStats
+	// Usage counters and their planning-time total are protected by mu.
 	plannerStats    PlannerStats
 	totalPlanTimeUs int64
 
@@ -158,13 +159,12 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start).Microseconds()
-		atomic.AddInt64(&qp.totalPlanTimeUs, elapsed)
-		atomic.AddUint64(&qp.plannerStats.QueriesPlanned, 1)
-		total := atomic.LoadUint64(&qp.plannerStats.QueriesPlanned)
-		totalTime := atomic.LoadInt64(&qp.totalPlanTimeUs)
 		qp.mu.Lock()
+		qp.totalPlanTimeUs += elapsed
+		qp.plannerStats.QueriesPlanned++
+		total := qp.plannerStats.QueriesPlanned
 		if total > 0 {
-			qp.plannerStats.AvgPlanningTimeUs = float64(totalTime) / float64(total)
+			qp.plannerStats.AvgPlanningTimeUs = float64(qp.totalPlanTimeUs) / float64(total)
 		}
 		qp.mu.Unlock()
 	}()
@@ -182,7 +182,9 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 
 	if plan.PartitionsPruned > 0 && qp.config.EnablePartitionPruning {
 		plan.Optimizations = append(plan.Optimizations, fmt.Sprintf("partition_pruning: %d/%d pruned", plan.PartitionsPruned, totalPartitions))
-		atomic.AddUint64(&qp.plannerStats.PartitionsPruned, uint64(plan.PartitionsPruned))
+		qp.mu.Lock()
+		qp.plannerStats.PartitionsPruned += uint64(plan.PartitionsPruned)
+		qp.mu.Unlock()
 	}
 
 	// Phase 2: Build plan tree
@@ -220,7 +222,9 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 		}
 		root = filterNode
 		plan.Optimizations = append(plan.Optimizations, "predicate_pushdown: metric filter")
-		atomic.AddUint64(&qp.plannerStats.PredicatesPushed, 1)
+		qp.mu.Lock()
+		qp.plannerStats.PredicatesPushed++
+		qp.mu.Unlock()
 	}
 
 	if len(q.Tags) > 0 && qp.config.EnablePredicatePushdown {
@@ -236,7 +240,9 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 		}
 		root = filterNode
 		plan.Optimizations = append(plan.Optimizations, "predicate_pushdown: tag filters")
-		atomic.AddUint64(&qp.plannerStats.PredicatesPushed, 1)
+		qp.mu.Lock()
+		qp.plannerStats.PredicatesPushed++
+		qp.mu.Unlock()
 	}
 
 	// Phase 4: Aggregation
@@ -266,7 +272,9 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 	if qp.config.EnableParallelExec && totalRows >= int64(qp.config.MinRowsForParallel) && len(eligible) > 1 {
 		plan.ParallelDegree = int(math.Min(float64(qp.config.MaxParallelScans), float64(len(eligible))))
 		plan.Optimizations = append(plan.Optimizations, fmt.Sprintf("parallel_scan: degree=%d", plan.ParallelDegree))
-		atomic.AddUint64(&qp.plannerStats.ParallelQueries, 1)
+		qp.mu.Lock()
+		qp.plannerStats.ParallelQueries++
+		qp.mu.Unlock()
 	} else {
 		plan.ParallelDegree = 1
 	}
@@ -346,7 +354,9 @@ func (qp *QueryPlanner) RefreshStats() {
 	}
 
 	qp.queryStats.Store(stats)
-	atomic.AddUint64(&qp.plannerStats.StatsRefreshes, 1)
+	qp.mu.Lock()
+	qp.plannerStats.StatsRefreshes++
+	qp.mu.Unlock()
 }
 
 // GetStats returns the current query statistics.

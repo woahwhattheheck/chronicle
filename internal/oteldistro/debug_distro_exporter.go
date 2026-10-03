@@ -8,7 +8,7 @@ import (
 
 // debugExporterState holds per-instance state for DebugDistroExporter.
 type debugExporterState struct {
-	exportCount int64
+	exportCount atomic.Int64
 }
 
 func (e *DebugDistroExporter) Start(ctx context.Context, host Host) error { return nil }
@@ -22,7 +22,7 @@ func (e *DebugDistroExporter) ExportMetrics(ctx context.Context, metrics *Metric
 		return nil
 	}
 
-	count := atomic.AddInt64(&e.state.exportCount, 1)
+	count := e.state.exportCount.Add(1)
 	verbosity := e.config.Verbosity
 
 	totalMetrics := 0

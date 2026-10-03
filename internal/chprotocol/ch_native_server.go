@@ -3,7 +3,6 @@ package chprotocol
 import (
 	"fmt"
 	"net"
-	"sync/atomic"
 )
 
 // Start begins listening for connections
@@ -73,13 +72,13 @@ func (s *CHNativeServer) acceptLoop() {
 			}
 		}
 
-		if atomic.LoadInt64(&s.activeConns) >= int64(s.config.MaxConnections) {
+		if s.activeConns.Load() >= int64(s.config.MaxConnections) {
 			conn.Close()
 			continue
 		}
 
-		atomic.AddInt64(&s.totalConnections, 1)
-		atomic.AddInt64(&s.activeConns, 1)
+		s.totalConnections.Add(1)
+		s.activeConns.Add(1)
 
 		session := newCHSession(s, conn)
 		s.sessions.Store(session.id, session)
@@ -92,7 +91,7 @@ func (s *CHNativeServer) handleSession(session *CHSession) {
 	defer func() {
 		session.Close()
 		s.sessions.Delete(session.id)
-		atomic.AddInt64(&s.activeConns, -1)
+		s.activeConns.Add(-1)
 	}()
 
 	if err := session.handleHandshake(); err != nil {
@@ -118,9 +117,9 @@ func (s *CHNativeServer) handleSession(session *CHSession) {
 			}
 
 		case CHClientQuery:
-			atomic.AddInt64(&s.totalQueries, 1)
+			s.totalQueries.Add(1)
 			if err := session.handleQuery(); err != nil {
-				atomic.AddInt64(&s.queryErrors, 1)
+				s.queryErrors.Add(1)
 			}
 
 		case CHClientData:
@@ -140,9 +139,9 @@ func (s *CHNativeServer) handleSession(session *CHSession) {
 // Stats returns server statistics
 func (s *CHNativeServer) Stats() CHServerStats {
 	return CHServerStats{
-		TotalConnections:  atomic.LoadInt64(&s.totalConnections),
-		ActiveConnections: atomic.LoadInt64(&s.activeConns),
-		TotalQueries:      atomic.LoadInt64(&s.totalQueries),
-		QueryErrors:       atomic.LoadInt64(&s.queryErrors),
+		TotalConnections:  s.totalConnections.Load(),
+		ActiveConnections: s.activeConns.Load(),
+		TotalQueries:      s.totalQueries.Load(),
+		QueryErrors:       s.queryErrors.Load(),
 	}
 }

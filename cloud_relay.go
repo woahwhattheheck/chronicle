@@ -88,7 +88,7 @@ type CloudRelay struct {
 	queue   chan Point
 	status  atomic.Value
 	stats   RelaySyncStats
-	seqNum  uint64
+	seqNum  atomic.Uint64
 	startAt time.Time
 	client  *http.Client
 
@@ -156,10 +156,14 @@ func (r *CloudRelay) Stop() {
 func (r *CloudRelay) Enqueue(p Point) error {
 	select {
 	case r.queue <- p:
-		atomic.AddUint64(&r.stats.PointsQueued, 1)
+		r.mu.Lock()
+		r.stats.PointsQueued++
+		r.mu.Unlock()
 		return nil
 	default:
-		atomic.AddUint64(&r.stats.PointsFailed, 1)
+		r.mu.Lock()
+		r.stats.PointsFailed++
+		r.mu.Unlock()
 		return fmt.Errorf("relay queue full (capacity: %d)", r.config.MaxQueueSize)
 	}
 }
@@ -231,7 +235,7 @@ func (r *CloudRelay) collectBatch() []Point {
 }
 
 func (r *CloudRelay) sendBatch(points []Point) {
-	seq := atomic.AddUint64(&r.seqNum, 1)
+	seq := r.seqNum.Add(1)
 	batch := RelayBatch{
 		NodeID:    r.config.NodeID,
 		Region:    r.config.Region,
@@ -243,14 +247,18 @@ func (r *CloudRelay) sendBatch(points []Point) {
 	data, err := json.Marshal(batch)
 	if err != nil {
 		r.recordError(fmt.Sprintf("marshal error: %v", err))
-		atomic.AddUint64(&r.stats.BatchesFailed, 1)
+		r.mu.Lock()
+		r.stats.BatchesFailed++
+		r.mu.Unlock()
 		return
 	}
 
 	var lastErr error
 	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
 		if attempt > 0 {
-			atomic.AddUint64(&r.stats.RetryCount, 1)
+			r.mu.Lock()
+			r.stats.RetryCount++
+			r.mu.Unlock()
 			select {
 			case <-time.After(r.config.RetryBackoff * time.Duration(attempt)):
 			case <-r.done:
@@ -265,9 +273,9 @@ func (r *CloudRelay) sendBatch(points []Point) {
 		}
 
 		// Success
-		atomic.AddUint64(&r.stats.BatchesSent, 1)
-		atomic.AddUint64(&r.stats.PointsSynced, uint64(len(points)))
 		r.mu.Lock()
+		r.stats.BatchesSent++
+		r.stats.PointsSynced += uint64(len(points))
 		r.stats.BytesSent += int64(len(data))
 		r.stats.LastSyncTime = time.Now()
 		r.mu.Unlock()
@@ -275,8 +283,10 @@ func (r *CloudRelay) sendBatch(points []Point) {
 		return
 	}
 
-	atomic.AddUint64(&r.stats.BatchesFailed, 1)
-	atomic.AddUint64(&r.stats.PointsFailed, uint64(len(points)))
+	r.mu.Lock()
+	r.stats.BatchesFailed++
+	r.stats.PointsFailed += uint64(len(points))
+	r.mu.Unlock()
 	if lastErr != nil {
 		r.recordError(lastErr.Error())
 	}

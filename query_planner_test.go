@@ -2,6 +2,9 @@ package chronicle
 
 import (
 	"context"
+	"encoding/json"
+	"math"
+	"sync"
 	"testing"
 	"time"
 )
@@ -127,6 +130,77 @@ func TestQueryPlannerStats(t *testing.T) {
 	pStats := planner.GetPlannerStats()
 	if pStats.QueriesPlanned != 1 {
 		t.Errorf("expected 1 query planned, got %d", pStats.QueriesPlanned)
+	}
+}
+
+func TestQueryPlannerConcurrentStats(t *testing.T) {
+	const workers, iterations = 4, 32
+	const plans = workers * iterations
+	config := DefaultQueryPlannerConfig()
+	config.MinRowsForParallel = 1
+	planner := NewQueryPlanner(nil, config)
+	planner.RefreshStats()
+	initial := planner.GetPlannerStats()
+	// Publish a fixed statistics snapshot so every plan prunes one partition,
+	// pushes both filters and scans the remaining two partitions in parallel.
+	planner.queryStats.Store(&QueryStats{PartitionStats: []PartitionStats{
+		{ID: "old", MinTime: 1, MaxTime: 9, RowCount: 10, Metrics: []string{"cpu"}},
+		{ID: "first", MinTime: 10, MaxTime: 19, RowCount: 20, Metrics: []string{"cpu"}},
+		{ID: "second", MinTime: 20, MaxTime: 29, RowCount: 30, Metrics: []string{"cpu"}},
+	}})
+	q := &Query{Metric: "cpu", Start: 10, End: 29, Tags: map[string]string{"host": "web-1"}}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			var previous uint64
+			for range iterations {
+				plan, err := planner.Plan(context.Background(), q)
+				if err != nil {
+					t.Errorf("Plan: %v", err)
+					return
+				}
+				if plan.PartitionsPruned != 1 || plan.PartitionsUsed != 2 || plan.ParallelDegree != 2 {
+					t.Errorf("unexpected partition plan: %+v", plan)
+				}
+				stats := planner.GetPlannerStats()
+				if stats.QueriesPlanned < previous {
+					t.Errorf("planned count decreased from %d to %d", previous, stats.QueriesPlanned)
+				}
+				previous = stats.QueriesPlanned
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	stats := planner.GetPlannerStats()
+	if math.IsNaN(stats.AvgPlanningTimeUs) || math.IsInf(stats.AvgPlanningTimeUs, 0) || stats.AvgPlanningTimeUs < 0 {
+		t.Errorf("invalid average planning time: %v", stats.AvgPlanningTimeUs)
+	}
+	want := PlannerStats{
+		QueriesPlanned: plans, PartitionsPruned: plans, PredicatesPushed: 2 * plans,
+		ParallelQueries: plans, StatsRefreshes: 1, AvgPlanningTimeUs: stats.AvgPlanningTimeUs,
+	}
+	if stats != want {
+		t.Errorf("GetPlannerStats() = %+v, want %+v", stats, want)
+	}
+	if initial != (PlannerStats{StatsRefreshes: 1}) {
+		t.Errorf("initial snapshot changed: %+v", initial)
+	}
+	encoded, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]float64
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("planner statistics must retain numeric JSON fields: %v", err)
+	}
+	if len(decoded) != 7 || decoded["queries_planned"] != plans || decoded["predicates_pushed"] != 2*plans {
+		t.Errorf("unexpected planner statistics JSON: %s", encoded)
 	}
 }
 

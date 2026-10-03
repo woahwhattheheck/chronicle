@@ -187,6 +187,65 @@ func TestCHNativeServer_Stats(t *testing.T) {
 	if stats.TotalQueries != 0 {
 		t.Errorf("TotalQueries = %d, want 0", stats.TotalQueries)
 	}
+	if stats.QueryErrors != 0 {
+		t.Errorf("QueryErrors = %d, want 0", stats.QueryErrors)
+	}
+}
+
+func TestCHNativeServer_ConnectionStats(t *testing.T) {
+	const clients = 8
+	config := DefaultClickHouseProtocolConfig()
+	config.Address = "127.0.0.1:0"
+	config.MaxConnections = clients
+	server, err := NewCHNativeServer(nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() { _ = server.Stop() })
+
+	connections := make([]net.Conn, 0, clients)
+	for range clients {
+		conn, err := net.DialTimeout("tcp", server.listener.Addr().String(), 5*time.Second)
+		if err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		t.Cleanup(func() { _ = conn.Close() })
+		connections = append(connections, conn)
+	}
+
+	// Observe snapshots while the accept loop and session goroutines update
+	// their counters. Keeping the clients open makes both states deterministic.
+	waitForStats := func(want CHServerStats) CHServerStats {
+		t.Helper()
+		deadline := time.NewTimer(5 * time.Second)
+		defer deadline.Stop()
+		ticker := time.NewTicker(time.Millisecond)
+		defer ticker.Stop()
+		for {
+			got := server.Stats()
+			if got == want {
+				return got
+			}
+			select {
+			case <-deadline.C:
+				t.Fatalf("Stats() = %+v, want %+v", got, want)
+			case <-ticker.C:
+			}
+		}
+	}
+	connected := waitForStats(CHServerStats{TotalConnections: clients, ActiveConnections: clients})
+	for _, conn := range connections {
+		if err := conn.Close(); err != nil {
+			t.Fatalf("close: %v", err)
+		}
+	}
+	waitForStats(CHServerStats{TotalConnections: clients})
+	if connected.ActiveConnections != clients {
+		t.Fatalf("previous snapshot changed after connections closed: %+v", connected)
+	}
 }
 
 // mockConn implements net.Conn for testing
@@ -195,11 +254,13 @@ type mockConn struct {
 	closed bool
 }
 
-func (m *mockConn) Read(b []byte) (int, error)          { return m.buf.Read(b) }
-func (m *mockConn) Write(b []byte) (int, error)         { return m.buf.Write(b) }
-func (m *mockConn) Close() error                        { m.closed = true; return nil }
-func (m *mockConn) LocalAddr() net.Addr                 { return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9000} }
-func (m *mockConn) RemoteAddr() net.Addr                { return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345} }
-func (m *mockConn) SetDeadline(t time.Time) error       { return nil }
-func (m *mockConn) SetReadDeadline(t time.Time) error   { return nil }
-func (m *mockConn) SetWriteDeadline(t time.Time) error  { return nil }
+func (m *mockConn) Read(b []byte) (int, error)  { return m.buf.Read(b) }
+func (m *mockConn) Write(b []byte) (int, error) { return m.buf.Write(b) }
+func (m *mockConn) Close() error                { m.closed = true; return nil }
+func (m *mockConn) LocalAddr() net.Addr         { return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9000} }
+func (m *mockConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
+}
+func (m *mockConn) SetDeadline(t time.Time) error      { return nil }
+func (m *mockConn) SetReadDeadline(t time.Time) error  { return nil }
+func (m *mockConn) SetWriteDeadline(t time.Time) error { return nil }

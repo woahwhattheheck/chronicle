@@ -1,7 +1,10 @@
 package hardwareaccel
 
 import (
+	"encoding/json"
 	"math"
+	"runtime"
+	"sync"
 	"testing"
 
 	chronicle "github.com/chronicle-db/chronicle"
@@ -869,6 +872,164 @@ func TestHAStats(t *testing.T) {
 	totalOps := stats.GPUOperations + stats.FPGAOperations + stats.SIMDOperations + stats.CPUFallbacks
 	if totalOps == 0 {
 		t.Log("Expected some operations to be counted")
+	}
+}
+
+func TestHAStatsConcurrentOperations(t *testing.T) {
+	const workers, iterations = 8, 16
+	const calls = workers * iterations
+	data := []float64{1, 2, 3, 4}
+	const bytesPerCall = 4 * 8
+
+	tests := []struct {
+		name           string
+		accelerator    AcceleratorType
+		failAllocation bool
+		want           HardwareAccelStats
+	}{
+		{
+			name:        "GPU",
+			accelerator: AcceleratorGPU,
+			want: HardwareAccelStats{
+				GPUOperations:     3 * calls,
+				GPUBytesProcessed: 2 * calls * bytesPerCall,
+			},
+		},
+		{
+			name:        "FPGA",
+			accelerator: AcceleratorFPGA,
+			want: HardwareAccelStats{
+				FPGAOperations:     calls,
+				FPGABytesProcessed: calls * bytesPerCall,
+			},
+		},
+		{
+			name:        "SIMD",
+			accelerator: AcceleratorSIMD,
+			want: HardwareAccelStats{
+				SIMDOperations:     3 * calls,
+				SIMDBytesProcessed: 2 * calls * bytesPerCall,
+			},
+		},
+		{
+			name:           "GPU CPU fallback",
+			accelerator:    AcceleratorGPU,
+			failAllocation: true,
+			want: HardwareAccelStats{
+				GPUErrors:    calls,
+				CPUFallbacks: 3 * calls,
+			},
+		},
+		{
+			name:           "FPGA CPU fallback",
+			accelerator:    AcceleratorFPGA,
+			failAllocation: true,
+			want: HardwareAccelStats{
+				FPGAErrors:   calls,
+				CPUFallbacks: calls,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := DefaultHardwareAccelConfig()
+			config.EnableGPU = tt.accelerator == AcceleratorGPU
+			config.EnableFPGA = tt.accelerator == AcceleratorFPGA
+			config.EnableSIMD = tt.accelerator == AcceleratorSIMD
+			config.GPUBatchSize = 1
+			sdk, err := NewHardwareAccelSDK(nil, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { sdk.Close() })
+
+			if tt.failAllocation {
+				switch device := sdk.devices[tt.accelerator].(type) {
+				case *GPUDevice:
+					device.memoryTotal = 0
+				case *FPGADevice:
+					device.memoryTotal = 0
+				}
+			}
+
+			initial := sdk.Stats()
+			stopReader := make(chan struct{})
+			readerDone := make(chan struct{})
+			go func() {
+				defer close(readerDone)
+				for {
+					_ = sdk.Stats()
+					select {
+					case <-stopReader:
+						return
+					default:
+						runtime.Gosched()
+					}
+				}
+			}()
+
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			for i := 0; i < workers; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					for j := 0; j < iterations; j++ {
+						compressed, err := sdk.CompressAccelerated(data)
+						if err != nil {
+							t.Errorf("CompressAccelerated: %v", err)
+							return
+						}
+						if tt.accelerator == AcceleratorFPGA {
+							continue
+						}
+						if _, err := sdk.DecompressAccelerated(compressed, len(data)); err != nil {
+							t.Errorf("DecompressAccelerated: %v", err)
+							return
+						}
+						if _, err := sdk.AggregateAccelerated(AggregateSum, data); err != nil {
+							t.Errorf("AggregateAccelerated: %v", err)
+							return
+						}
+					}
+				}()
+			}
+			close(start)
+			wg.Wait()
+			close(stopReader)
+			<-readerDone
+
+			got := sdk.Stats()
+			if got.TotalGPUTimeNs < 0 || got.TotalFPGATimeNs < 0 || got.TotalSIMDTimeNs < 0 {
+				t.Errorf("negative operation duration: %+v", got)
+			}
+			// Durations vary; all operation, byte, error and fallback counts are exact.
+			got.TotalGPUTimeNs, got.TotalFPGATimeNs, got.TotalSIMDTimeNs = 0, 0, 0
+			if got != tt.want {
+				t.Errorf("Stats() = %+v, want %+v", got, tt.want)
+			}
+			if initial != (HardwareAccelStats{}) {
+				t.Errorf("initial snapshot changed: %+v", initial)
+			}
+			got.CPUFallbacks++
+			if sdk.Stats().CPUFallbacks != tt.want.CPUFallbacks {
+				t.Error("editing a snapshot changed the live counters")
+			}
+
+			encoded, err := json.Marshal(sdk.Stats())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded map[string]int64
+			if err := json.Unmarshal(encoded, &decoded); err != nil {
+				t.Fatalf("snapshot JSON must retain numeric fields: %v", err)
+			}
+			if len(decoded) != 14 || decoded["CPUFallbacks"] != tt.want.CPUFallbacks {
+				t.Errorf("unexpected snapshot JSON: %s", encoded)
+			}
+		})
 	}
 }
 

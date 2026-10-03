@@ -54,7 +54,7 @@ func TestFaultInjector_ShouldFail(t *testing.T) {
 	}
 
 	// Inject a fault with probability 1.0.
-	_, err := fi.InjectFault(&FaultConfig{
+	fault, err := fi.InjectFault(&FaultConfig{
 		Type:        FaultDiskFail,
 		Duration:    time.Minute,
 		Probability: 1.0,
@@ -67,10 +67,16 @@ func TestFaultInjector_ShouldFail(t *testing.T) {
 	if !fi.ShouldFail(FaultDiskFail) {
 		t.Errorf("expected ShouldFail=true with probability=1.0")
 	}
+	if fault.TriggerCount != 1 {
+		t.Errorf("expected one recorded trigger, got %d", fault.TriggerCount)
+	}
 
 	// Different fault type should not fail.
 	if fi.ShouldFail(FaultMemoryPressure) {
 		t.Errorf("expected ShouldFail=false for unrelated fault type")
+	}
+	if fault.TriggerCount != 1 {
+		t.Errorf("unrelated fault changed trigger count to %d", fault.TriggerCount)
 	}
 }
 

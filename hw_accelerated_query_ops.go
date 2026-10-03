@@ -3,7 +3,6 @@ package chronicle
 import (
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -260,8 +259,8 @@ func (e *HWAcceleratedQueryEngine) VectorizedScan(data []float64, timestamps []i
 	result.BytesRead = int64(len(data)) * 8
 	result.Duration = time.Since(start)
 
-	atomic.AddInt64(&e.queriesAccelerated, 1)
-	atomic.AddInt64(&e.totalDataProcessed, int64(len(data)))
+	e.queriesAccelerated.Add(1)
+	e.totalDataProcessed.Add(int64(len(data)))
 
 	return result
 }

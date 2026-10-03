@@ -565,7 +565,7 @@ func TestFederatedLearningEngine_VerifyUpdate(t *testing.T) {
 	}
 }
 
-func TestExtractFeatures(t *testing.T) {
+func TestFederatedLearningExtractFeatures(t *testing.T) {
 	points := make([]Point, 20)
 	for i := range points {
 		points[i] = Point{Value: float64(i)}

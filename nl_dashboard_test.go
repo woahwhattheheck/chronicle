@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -447,6 +448,68 @@ func TestNLDashboardStats(t *testing.T) {
 	}
 	if stats.PanelsGenerated < 2 {
 		t.Errorf("expected at least 2 panels generated, got %d", stats.PanelsGenerated)
+	}
+}
+
+func TestNLDashboardConcurrentStats(t *testing.T) {
+	const workers, iterations = 4, 16
+	const dashboards = workers * iterations
+	engine := NewNLDashboardEngine(nil, DefaultNLDashboardConfig())
+	initial := engine.Stats()
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			var previous int64
+			for range iterations {
+				dashboard, err := engine.GenerateDashboard(context.Background(), "current CPU usage; current memory usage")
+				if err != nil {
+					t.Errorf("GenerateDashboard: %v", err)
+					return
+				}
+				if len(dashboard.Panels) != 2 {
+					t.Errorf("generated %d panels, want 2", len(dashboard.Panels))
+				}
+				engine.ProvideFeedback(dashboard.ID, true, "")
+				engine.ProvideFeedback(dashboard.ID, false, "add network usage")
+				stats := engine.Stats()
+				if stats.DashboardsGenerated < previous {
+					t.Errorf("dashboard count decreased from %d to %d", previous, stats.DashboardsGenerated)
+				}
+				previous = stats.DashboardsGenerated
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	stats := engine.Stats()
+	want := NLDashboardStats{
+		DashboardsGenerated: dashboards,
+		PanelsGenerated:     2 * dashboards,
+		DashboardsCached:    dashboards,
+		FeedbackReceived:    2 * dashboards,
+		AcceptanceRate:      0.5,
+	}
+	if stats != want {
+		t.Errorf("Stats() = %+v, want %+v", stats, want)
+	}
+	if initial != (NLDashboardStats{}) {
+		t.Errorf("initial snapshot changed: %+v", initial)
+	}
+	encoded, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]float64
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("statistics must retain numeric JSON fields: %v", err)
+	}
+	if len(decoded) != 5 || decoded["dashboards_generated"] != dashboards || decoded["panels_generated"] != 2*dashboards {
+		t.Errorf("unexpected statistics JSON: %s", encoded)
 	}
 }
 

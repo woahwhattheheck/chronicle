@@ -53,13 +53,33 @@ func TestRandomSample(t *testing.T) {
 	if len(result) != 3 {
 		t.Errorf("expected 3 elements, got %d", len(result))
 	}
+	for _, value := range result {
+		if value < 1 || value > 10 || math.Trunc(value) != value {
+			t.Errorf("sample value %v is not in the input", value)
+		}
+	}
+}
+
+func TestRandomHelpersBounds(t *testing.T) {
+	for _, max := range []int{1, 3, 10, 1000000, int(^uint(0) >> 1)} {
+		for i := 0; i < 1000; i++ {
+			if value := randInt(max); value < 0 || value >= max {
+				t.Fatalf("randInt(%d) = %d, want a value in [0, %d)", max, value, max)
+			}
+		}
+	}
+	for i := 0; i < 1000; i++ {
+		if value := randFloat(); value < 0 || value >= 1 {
+			t.Fatalf("randFloat() = %v, want a value in [0, 1)", value)
+		}
+	}
 }
 
 func TestMinMax(t *testing.T) {
 	tests := []struct {
-		data     []float64
-		wantMin  float64
-		wantMax  float64
+		data    []float64
+		wantMin float64
+		wantMax float64
 	}{
 		{[]float64{}, 0, 0},
 		{[]float64{5}, 5, 5},
@@ -152,6 +172,11 @@ func TestRandomMatrix(t *testing.T) {
 	for i, row := range m {
 		if len(row) != 4 {
 			t.Errorf("row %d: expected 4 cols, got %d", i, len(row))
+		}
+		for j, value := range row {
+			if value < -1 || value >= 1 {
+				t.Errorf("matrix[%d][%d] = %v, want a value in [-1, 1)", i, j, value)
+			}
 		}
 	}
 }

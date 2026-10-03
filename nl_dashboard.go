@@ -184,8 +184,8 @@ type NLDashboardEngine struct {
 	feedbackMu sync.Mutex
 
 	// Stats
-	dashboardsGenerated int64
-	panelsGenerated     int64
+	dashboardsGenerated atomic.Int64
+	panelsGenerated     atomic.Int64
 }
 
 // NLPattern represents a natural language pattern.
@@ -290,7 +290,7 @@ func (e *NLDashboardEngine) GenerateDashboard(ctx context.Context, description s
 			row++
 		}
 
-		atomic.AddInt64(&e.panelsGenerated, 1)
+		e.panelsGenerated.Add(1)
 	}
 
 	// Cache dashboard
@@ -298,7 +298,7 @@ func (e *NLDashboardEngine) GenerateDashboard(ctx context.Context, description s
 	e.dashboards[dashboard.ID] = dashboard
 	e.dashboardsMu.Unlock()
 
-	atomic.AddInt64(&e.dashboardsGenerated, 1)
+	e.dashboardsGenerated.Add(1)
 
 	return dashboard, nil
 }

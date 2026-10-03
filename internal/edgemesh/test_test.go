@@ -2,8 +2,11 @@ package edgemesh
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -258,6 +261,100 @@ func TestEdgeMeshPeerManagement(t *testing.T) {
 		if p.ID == "peer1" && !p.Healthy {
 			t.Error("peer1 should be healthy")
 		}
+	}
+}
+
+type edgeMeshGossipTestTransport func(*http.Request) (*http.Response, error)
+
+func (f edgeMeshGossipTestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type edgeMeshGossipTestBody struct {
+	io.Reader
+	completed chan<- struct{}
+}
+
+func (b *edgeMeshGossipTestBody) Close() error {
+	b.completed <- struct{}{}
+	return nil
+}
+
+func TestEdgeMeshGossipTargetSelection(t *testing.T) {
+	for _, healthy := range []int{0, 1, 2, 3, 8} {
+		t.Run(fmt.Sprintf("healthy_%d", healthy), func(t *testing.T) {
+			config := DefaultEdgeMeshConfig()
+			config.NodeID = "gossip-test"
+			config.BindAddr = ""
+			mesh, err := NewEdgeMesh(nil, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(mesh.cancel)
+
+			requests := make(chan string, healthy+2)
+			completed := make(chan struct{}, healthy+2)
+			// Every request stays in memory; no network listener or peer is used.
+			mesh.client.Transport = edgeMeshGossipTestTransport(func(req *http.Request) (*http.Response, error) {
+				defer req.Body.Close()
+				requests <- req.URL.Host
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body: &edgeMeshGossipTestBody{
+						Reader: strings.NewReader("{}"), completed: completed,
+					},
+				}, nil
+			})
+			eligible := make(map[string]bool, healthy)
+			for i := 0; i < healthy+2; i++ {
+				id := fmt.Sprintf("peer-%d", i)
+				addr := fmt.Sprintf("peer-%d.test:7946", i)
+				mesh.addPeer(id, addr)
+				if i < healthy {
+					eligible[addr] = true
+				} else {
+					mesh.markPeerUnhealthy(id)
+				}
+			}
+
+			for range 16 {
+				mesh.performGossip()
+				seen := make(map[string]bool)
+				deadline := time.NewTimer(5 * time.Second)
+				for range min(3, healthy) {
+					select {
+					case addr := <-requests:
+						if !eligible[addr] || seen[addr] {
+							t.Fatalf("ineligible or repeated gossip target: %q", addr)
+						}
+						seen[addr] = true
+					case <-deadline.C:
+						t.Fatal("gossip did not dispatch the expected targets")
+					}
+					select {
+					case <-completed:
+					case <-deadline.C:
+						t.Fatal("gossip request did not finish")
+					}
+				}
+				deadline.Stop()
+				select {
+				case extra := <-requests:
+					t.Fatalf("unexpected extra gossip target: %q", extra)
+				default:
+				}
+				peers := mesh.Peers()
+				if len(peers) != healthy+2 {
+					t.Fatalf("gossip changed peer membership: %d peers", len(peers))
+				}
+				for _, peer := range peers {
+					if peer.Healthy != eligible[peer.Addr] {
+						t.Fatalf("gossip changed peer health: %+v", peer)
+					}
+				}
+			}
+		})
 	}
 }
 

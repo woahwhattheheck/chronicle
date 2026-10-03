@@ -137,8 +137,8 @@ type HWAcceleratedQueryEngine struct {
 	mu       sync.RWMutex
 
 	// stats
-	queriesAccelerated int64
-	totalDataProcessed int64
+	queriesAccelerated atomic.Int64
+	totalDataProcessed atomic.Int64
 	totalSpeedup       float64
 	speedupCount       int64
 	operationsByType   map[AccelOperation]int64
@@ -237,8 +237,8 @@ func (e *HWAcceleratedQueryEngine) PlanAcceleration(op AccelOperation, dataSize 
 
 // recordOp records an operation execution for stats.
 func (e *HWAcceleratedQueryEngine) recordOp(op AccelOperation, dataLen int, speedup float64) {
-	atomic.AddInt64(&e.queriesAccelerated, 1)
-	atomic.AddInt64(&e.totalDataProcessed, int64(dataLen))
+	e.queriesAccelerated.Add(1)
+	e.totalDataProcessed.Add(int64(dataLen))
 	e.statsMu.Lock()
 	e.operationsByType[op]++
 	e.totalSpeedup += speedup
@@ -463,8 +463,8 @@ func (e *HWAcceleratedQueryEngine) Stats() HWAcceleratedQueryStats {
 	e.statsMu.Unlock()
 
 	return HWAcceleratedQueryStats{
-		QueriesAccelerated: atomic.LoadInt64(&e.queriesAccelerated),
-		TotalDataProcessed: atomic.LoadInt64(&e.totalDataProcessed),
+		QueriesAccelerated: e.queriesAccelerated.Load(),
+		TotalDataProcessed: e.totalDataProcessed.Load(),
 		AvgSpeedup:         avgSpeedup,
 		HardwareProfile:    e.profile,
 		OperationsByType:   opsByType,

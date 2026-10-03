@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync/atomic"
 	"time"
 )
 
@@ -47,7 +46,9 @@ func (d *ChronicleOTelDistro) Start() error {
 		if err := d.startPipeline(pipeline); err != nil {
 			return fmt.Errorf("failed to start pipeline %s: %w", name, err)
 		}
-		atomic.AddInt64(&d.metrics.PipelinesStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.PipelinesStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	d.running = true
@@ -110,19 +111,25 @@ func (d *ChronicleOTelDistro) initializeReceivers() error {
 	if d.config.Receivers.OTLP != nil {
 		recv := NewOTLPDistroReceiver(d.config.Receivers.OTLP, d)
 		d.receivers["otlp"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ReceiversStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Receivers.Prometheus != nil {
 		recv := NewPrometheusDistroReceiver(d.config.Receivers.Prometheus, d)
 		d.receivers["prometheus"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ReceiversStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Receivers.HostMetrics != nil {
 		recv := NewHostMetricsDistroReceiver(d.config.Receivers.HostMetrics, d)
 		d.receivers["hostmetrics"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ReceiversStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	return nil
@@ -133,25 +140,33 @@ func (d *ChronicleOTelDistro) initializeProcessors() error {
 	if d.config.Processors.Batch != nil {
 		proc := NewBatchDistroProcessor(d.config.Processors.Batch)
 		d.processors["batch"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ProcessorsStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Processors.Memory != nil {
 		proc := NewMemoryLimiterDistroProcessor(d.config.Processors.Memory)
 		d.processors["memory_limiter"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ProcessorsStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Processors.Attributes != nil {
 		proc := NewAttributesDistroProcessor(d.config.Processors.Attributes)
 		d.processors["attributes"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ProcessorsStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Processors.Filter != nil {
 		proc := NewFilterDistroProcessor(d.config.Processors.Filter)
 		d.processors["filter"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ProcessorsStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	return nil
@@ -162,19 +177,25 @@ func (d *ChronicleOTelDistro) initializeExporters() error {
 	if d.config.Exporters.Chronicle != nil {
 		exp := NewChronicleDistroExporter(d.pw, d.config.Exporters.Chronicle)
 		d.exporters["chronicle"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ExportersStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Exporters.OTLP != nil {
 		exp := NewOTLPDistroExporter(d.config.Exporters.OTLP)
 		d.exporters["otlp"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ExportersStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	if d.config.Exporters.Debug != nil {
 		exp := NewDebugDistroExporter(d.config.Exporters.Debug)
 		d.exporters["debug"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
+		d.metrics.mu.Lock()
+		d.metrics.ExportersStarted++
+		d.metrics.mu.Unlock()
 	}
 
 	return nil
@@ -281,19 +302,27 @@ func (d *ChronicleOTelDistro) pipelineWorker(pipeline *Pipeline) {
 		for _, proc := range pipeline.Processors {
 			metrics, err = proc.ProcessMetrics(d.ctx, metrics)
 			if err != nil {
-				atomic.AddInt64(&d.metrics.Errors, 1)
+				d.metrics.mu.Lock()
+				d.metrics.Errors++
+				d.metrics.mu.Unlock()
 				continue
 			}
 		}
 
-		atomic.AddInt64(&d.metrics.MetricsProcessed, 1)
+		d.metrics.mu.Lock()
+		d.metrics.MetricsProcessed++
+		d.metrics.mu.Unlock()
 
 		for _, exp := range pipeline.Exporters {
 			if err := exp.ExportMetrics(d.ctx, metrics); err != nil {
-				atomic.AddInt64(&d.metrics.Errors, 1)
-				atomic.AddInt64(&d.metrics.MetricsDropped, 1)
+				d.metrics.mu.Lock()
+				d.metrics.Errors++
+				d.metrics.MetricsDropped++
+				d.metrics.mu.Unlock()
 			} else {
-				atomic.AddInt64(&d.metrics.MetricsExported, 1)
+				d.metrics.mu.Lock()
+				d.metrics.MetricsExported++
+				d.metrics.mu.Unlock()
 			}
 		}
 	}
@@ -309,12 +338,16 @@ func (d *ChronicleOTelDistro) PushMetrics(metrics *Metrics) {
 		return
 	}
 
-	atomic.AddInt64(&d.metrics.MetricsReceived, 1)
+	d.metrics.mu.Lock()
+	d.metrics.MetricsReceived++
+	d.metrics.mu.Unlock()
 
 	select {
 	case pipeline.dataChan <- metrics:
 	default:
-		atomic.AddInt64(&d.metrics.MetricsDropped, 1)
+		d.metrics.mu.Lock()
+		d.metrics.MetricsDropped++
+		d.metrics.mu.Unlock()
 	}
 }
 

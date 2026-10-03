@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -257,12 +256,16 @@ func (h *ConnectorHub) ListConnectors() []ConnectorInstance {
 	return result
 }
 
-// GetConnector returns a specific connector by name.
+// GetConnector returns a snapshot of a specific connector by name.
 func (h *ConnectorHub) GetConnector(name string) (*ConnectorInstance, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	inst, ok := h.connectors[name]
-	return inst, ok
+	if !ok {
+		return nil, false
+	}
+	snapshot := *inst
+	return &snapshot, true
 }
 
 // ListDeadLetters returns entries from the dead letter queue.
@@ -352,8 +355,11 @@ func (h *ConnectorHub) sinkFlush(name string, driver ConnectorDriver, inst *Conn
 	}
 
 	// Read recent points from the database for this sink
+	h.mu.RLock()
+	lastActivity := inst.Stats.LastActivityAt
+	h.mu.RUnlock()
 	q := &Query{
-		Start: atomic.LoadInt64(&inst.Stats.LastActivityAt),
+		Start: lastActivity,
 		End:   time.Now().UnixNano(),
 		Limit: inst.Config.BatchSize,
 	}
@@ -372,8 +378,8 @@ func (h *ConnectorHub) sinkFlush(name string, driver ConnectorDriver, inst *Conn
 	}
 
 	if writeErr := driver.Write(points); writeErr != nil {
-		atomic.AddUint64(&inst.Stats.RecordsFailed, uint64(len(points)))
 		h.mu.Lock()
+		inst.Stats.RecordsFailed += uint64(len(points))
 		inst.LastError = writeErr.Error()
 		if h.config.DeadLetterEnabled {
 			for _, p := range points {
@@ -391,10 +397,11 @@ func (h *ConnectorHub) sinkFlush(name string, driver ConnectorDriver, inst *Conn
 		return
 	}
 
-	atomic.AddUint64(&inst.Stats.RecordsProcessed, uint64(len(points)))
-	atomic.AddUint64(&inst.Stats.BatchesSent, 1)
-	now := time.Now().UnixNano()
-	atomic.StoreInt64(&inst.Stats.LastActivityAt, now)
+	h.mu.Lock()
+	inst.Stats.RecordsProcessed += uint64(len(points))
+	inst.Stats.BatchesSent++
+	inst.Stats.LastActivityAt = time.Now().UnixNano()
+	h.mu.Unlock()
 }
 
 func (h *ConnectorHub) filterPoints(points []Point, filters ConnectorFilters) []Point {
@@ -494,8 +501,8 @@ type fileConnectorDriver struct {
 }
 
 func (d *fileConnectorDriver) Name() string        { return "file" }
-func (d *fileConnectorDriver) Type() ConnectorType  { return ConnectorTypeSink }
-func (d *fileConnectorDriver) HealthCheck() error   { return nil }
+func (d *fileConnectorDriver) Type() ConnectorType { return ConnectorTypeSink }
+func (d *fileConnectorDriver) HealthCheck() error  { return nil }
 
 func (d *fileConnectorDriver) Initialize(config map[string]string) error {
 	d.path = config["path"]

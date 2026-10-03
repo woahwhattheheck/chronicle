@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -294,10 +295,10 @@ type StreamDSLV2Engine struct {
 	state    *streamDSLV2StateStore
 	mu       sync.RWMutex
 
-	totalEvents     int64
-	patternsMatched int64
-	totalLatencyNs  int64
-	latencyCount    int64
+	totalEvents     atomic.Int64
+	patternsMatched atomic.Int64
+	totalLatencyNs  atomic.Int64
+	latencyCount    atomic.Int64
 	startTime       time.Time
 }
 

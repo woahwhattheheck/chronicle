@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -71,6 +72,42 @@ func TestCloudRelayQueueFull(t *testing.T) {
 	err := relay.Enqueue(p)
 	if err == nil {
 		t.Error("expected queue full error")
+	}
+}
+
+func TestCloudRelayConcurrentStats(t *testing.T) {
+	config := DefaultCloudRelayConfig()
+	config.MaxQueueSize = 400
+	relay := NewCloudRelay(setupTestDB(t), config)
+
+	var writers sync.WaitGroup
+	writers.Add(4)
+	for worker := 0; worker < 4; worker++ {
+		go func() {
+			defer writers.Done()
+			for i := 0; i < 100; i++ {
+				if err := relay.Enqueue(Point{Metric: "concurrent", Value: float64(i)}); err != nil {
+					t.Errorf("Enqueue failed: %v", err)
+				}
+			}
+		}()
+	}
+	done := make(chan struct{})
+	go func() {
+		writers.Wait()
+		close(done)
+	}()
+	for {
+		select {
+		case <-done:
+			stats := relay.Stats()
+			if stats.PointsQueued != 400 || stats.QueueDepth != 400 {
+				t.Fatalf("lost queued points: %+v", stats)
+			}
+			return
+		default:
+			_ = relay.Stats()
+		}
 	}
 }
 
