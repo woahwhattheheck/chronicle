@@ -2,7 +2,10 @@ module github.com/chronicle-db/chronicle/examples/home-automation
 
 go 1.24.0
 
-require github.com/chronicle-db/chronicle v0.0.0
+require (
+	github.com/chronicle-db/chronicle v0.0.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
+)
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.1 // indirect
@@ -32,9 +35,10 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/prometheus/prometheus v0.53.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.67.6 // indirect
