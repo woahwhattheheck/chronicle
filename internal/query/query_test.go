@@ -259,6 +259,52 @@ func TestParserAdvanced(t *testing.T) {
 	}
 }
 
+func TestParserMembershipPreservesTrailingClauses(t *testing.T) {
+	tests := []struct {
+		predicate string
+		op        TagOp
+		values    []string
+	}{
+		{"IN ('web-1')", TagOpIn, []string{"web-1"}},
+		{"IN('web-1', 'web-2')", TagOpIn, []string{"web-1", "web-2"}},
+		{"NOT IN ('web-1')", TagOpNotIn, []string{"web-1"}},
+		{"not in('web-1')", TagOpNotIn, []string{"web-1"}},
+		{"NOT IN('web-1', 'web-2')", TagOpNotIn, []string{"web-1", "web-2"}},
+		{"NOT IN ('web-1)')", TagOpNotIn, []string{"web-1)"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.predicate, func(t *testing.T) {
+			input := "SELECT sum(value) FROM cpu WHERE host " + tt.predicate +
+				" AND env = 'prod' GROUP BY time(1m), env LIMIT 1"
+			q, err := (&Parser{}).Parse(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(q.TagFilters) != 2 {
+				t.Fatalf("expected membership and env filters, got %#v", q.TagFilters)
+			}
+			filter := q.TagFilters[0]
+			if filter.Key != "host" || filter.Op != tt.op || len(filter.Values) != len(tt.values) {
+				t.Fatalf("unexpected membership filter: %#v", filter)
+			}
+			for i, value := range tt.values {
+				if filter.Values[i] != value {
+					t.Fatalf("membership values = %#v, want %#v", filter.Values, tt.values)
+				}
+			}
+			if q.Tags["env"] != "prod" || q.TagFilters[1].Op != TagOpEq {
+				t.Fatalf("following equality was lost: %#v", q)
+			}
+			if q.Limit != 1 || len(q.GroupBy) != 1 || q.GroupBy[0] != "env" {
+				t.Fatalf("following GROUP BY or LIMIT was lost: %#v", q)
+			}
+			if q.Aggregation == nil || q.Aggregation.Function != AggSum || q.Aggregation.Window != time.Minute {
+				t.Fatalf("aggregation functions were not preserved: %#v", q.Aggregation)
+			}
+		})
+	}
+}
+
 func TestAggBucketsAllFunctions(t *testing.T) {
 	funcs := []AggFunc{AggCount, AggSum, AggMean, AggMin, AggMax, AggFirst, AggLast}
 

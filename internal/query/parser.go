@@ -477,11 +477,12 @@ func tokenize(input string) []string {
 	}
 	flush()
 
-	// Merge tokens like time(5m)
+	// Merge function tokens like time(5m), but keep membership lists separate.
+	// Merging IN('a') would hide its closing parenthesis from the list parser.
 	var merged []string
 	i := 0
 	for i < len(tokens) {
-		if i+2 < len(tokens) && tokens[i+1] == "(" && tokens[i+2] != ")" {
+		if i+2 < len(tokens) && !strings.EqualFold(tokens[i], "IN") && tokens[i+1] == "(" && tokens[i+2] != ")" {
 			merged = append(merged, tokens[i]+tokens[i+1]+tokens[i+2])
 			i += 3
 			if i < len(tokens) && tokens[i] == ")" {
