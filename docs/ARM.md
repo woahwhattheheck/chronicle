@@ -113,6 +113,13 @@ optimizations.
 | Write a 1,000-point batch across 10 hosts | 58.147 ms | 3,292,114 | 59,809 |
 | Grouped one-second mean query over 10,000 seeded points / 50 hosts | 27.117 ms | 264,522 | 17,225 |
 
+`WriteBatch` reuses one prepared payload and its timestamps on every operation;
+the aggregation benchmark repeats one query against the same seeded database.
+Setup and seeding are excluded by `ResetTimer`, while deferred `db.Close` is
+amortized into each 20-operation sample and its returned error is ignored.
+Open, write, and query errors are fatal to the benchmarks. Query rows are
+discarded, with result correctness covered by the separate database tests.
+
 These are observed costs of buffered database operations under emulation on a
 shared host. Physical Pi performance, durable-storage throughput, and a
 before/after speedup were not measured.
