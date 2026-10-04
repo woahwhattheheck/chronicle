@@ -2,8 +2,6 @@ package chronicle
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -418,14 +416,29 @@ func (idx *invertedIndex) tokenize(text string) []string {
 
 // Helper functions
 
+var multiModalIDSequence atomic.Uint64
+
+// Log and span identities must not repeat when the clock has coarse resolution
+// or moves backward. Sharing the sequence also separates the two ID namespaces.
+func generateMultiModalID() string {
+	for {
+		previous := multiModalIDSequence.Load()
+		next := uint64(time.Now().UnixNano())
+		if next <= previous {
+			next = previous + 1
+		}
+		if multiModalIDSequence.CompareAndSwap(previous, next) {
+			return fmt.Sprintf("%016x", next)
+		}
+	}
+}
+
 func generateLogID() string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
-	return hex.EncodeToString(hash[:8])
+	return generateMultiModalID()
 }
 
 func generateSpanID() string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("span_%d", time.Now().UnixNano())))
-	return hex.EncodeToString(hash[:8])
+	return generateMultiModalID()
 }
 
 func isLevelAtOrAbove(level, threshold LogLevel) bool {
