@@ -1,0 +1,82 @@
+name: Native Windows full-suite report
+'on':
+  push:
+    branches: [validation/chronicle104-windows-20261004-rivet]
+    paths: [.github/workflows/verify-windows-suite-104.yml]
+permissions:
+  contents: read
+concurrency:
+  group: chronicle104-native-windows-rivet
+  cancel-in-progress: false
+jobs:
+  windows-suite:
+    if: github.repository == 'woahwhattheheck/chronicle'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: python
+    env:
+      CGO_ENABLED: '0'
+      SOURCE_SHA: 006bc101c1f2079b04696dfc497f5587328fcc46
+      PYTHONIOENCODING: utf-8
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ env.SOURCE_SHA }}
+        persist-credentials: false
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: false
+    - name: Execute bounded full-suite command and retain all failures
+      run: |
+        import json, os, platform, subprocess, sys
+        from pathlib import Path
+        assert sys.platform == 'win32'
+        evidence = Path('evidence')
+        evidence.mkdir()
+        head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        assert head == os.environ['SOURCE_SHA']
+        env = json.loads(subprocess.check_output(['go', 'env', '-json', 'GOOS', 'GOHOSTOS', 'GOARCH', 'CGO_ENABLED', 'GOVERSION'], text=True))
+        assert env['GOOS'] == env['GOHOSTOS'] == 'windows'
+        command = ['go', 'test', '-short', '-count=1', '-p=2', '-timeout=120s', '-json', './...']
+        status = {'source_commit': head, 'platform': platform.platform(), 'go_env': env, 'command': command, 'process_timeout_seconds': 600, 'per_package_timeout': '120s'}
+        evidence.joinpath('provenance.json').write_text(json.dumps(status, indent=2), encoding='utf-8')
+        with evidence.joinpath('full-suite.jsonl').open('w', encoding='utf-8') as out, evidence.joinpath('full-suite-stderr.log').open('w', encoding='utf-8') as err:
+            try:
+                result = subprocess.run(command, stdout=out, stderr=err, timeout=600)
+                status['exit_code'] = result.returncode
+                status['process_timed_out'] = False
+            except subprocess.TimeoutExpired:
+                status['exit_code'] = 124
+                status['process_timed_out'] = True
+        events = []
+        for line in evidence.joinpath('full-suite.jsonl').read_text(encoding='utf-8').splitlines():
+            try:
+                events.append(json.loads(line))
+            except ValueError:
+                pass
+        status['failed_events'] = [e for e in events if e.get('Action') == 'fail']
+        status['passed_packages'] = [e['Package'] for e in events if e.get('Action') == 'pass' and 'Test' not in e]
+        status['passed_test_and_subtest_events'] = sum(e.get('Action') == 'pass' and 'Test' in e for e in events)
+        status['skipped_packages'] = [e['Package'] for e in events if e.get('Action') == 'skip' and 'Test' not in e]
+        status['scope'] = 'Actual native Windows non-cgo short-suite command, bounded by recorded timeouts. Nonzero exit or timeout is not a full-suite pass; C FFI, race detector and non-short tests were not exercised.'
+        evidence.joinpath('summary.json').write_text(json.dumps(status, indent=2), encoding='utf-8')
+        print(json.dumps(status, indent=2), flush=True)
+        print(evidence.joinpath('full-suite-stderr.log').read_text(encoding='utf-8'), flush=True)
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+            output.write('## Native Windows full-suite compatibility report\n\n')
+            output.write(f"Source `{head}`. Exit code: {status['exit_code']}. Process timeout: {status['process_timed_out']}.\n\n")
+            output.write(f"Passing packages: {len(status['passed_packages'])}; failed events: {len(status['failed_events'])}. See complete raw JSON events and stderr before interpreting coverage.\n")
+        diff = subprocess.run(['git', 'diff', '--exit-code'], capture_output=True, text=True)
+        evidence.joinpath('source-diff.txt').write_text(diff.stdout + diff.stderr, encoding='utf-8')
+        raise SystemExit(status['exit_code'] or diff.returncode)
+    - name: Retain complete compatibility evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: chronicle104-full-windows-suite-${{ env.SOURCE_SHA }}
+        path: evidence/
+        retention-days: 14
+        if-no-files-found: error
