@@ -94,8 +94,9 @@ type ContinuousQueryEngine struct {
 	config ContinuousQueryConfig
 
 	// Query registry
-	queries map[string]*ContinuousQueryV2
-	queryMu sync.RWMutex
+	queries     map[string]*ContinuousQueryV2
+	queryMu     sync.RWMutex
+	lastQueryID int64 // guarded by queryMu; never reset when a query is deleted
 
 	// Materialized views
 	views  map[string]*MaterializedView

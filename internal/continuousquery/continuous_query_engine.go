@@ -203,7 +203,6 @@ func (e *ContinuousQueryEngine) CreateQuery(name, sql string, config CQConfig) (
 	ctx, cancel := context.WithCancel(e.ctx)
 
 	query := &ContinuousQueryV2{
-		ID:      fmt.Sprintf("cq-%d", time.Now().UnixNano()),
 		Name:    name,
 		SQL:     sql,
 		Plan:    plan,
@@ -221,6 +220,21 @@ func (e *ContinuousQueryEngine) CreateQuery(name, sql string, config CQConfig) (
 	}
 
 	e.queryMu.Lock()
+	// Planning runs outside the registry lock. Recheck capacity at insertion so
+	// simultaneous creates cannot both consume the same remaining slot.
+	if len(e.queries) >= e.config.MaxQueries {
+		e.queryMu.Unlock()
+		cancel()
+		return nil, errors.New("max queries reached")
+	}
+	// Windows clock resolution can give successive creates the same timestamp.
+	// Keep IDs monotonic for this engine, including after deletion or clock drift.
+	nextID := time.Now().UnixNano()
+	if nextID <= e.lastQueryID {
+		nextID = e.lastQueryID + 1
+	}
+	e.lastQueryID = nextID
+	query.ID = fmt.Sprintf("cq-%d", nextID)
 	e.queries[query.ID] = query
 	e.queryMu.Unlock()
 
