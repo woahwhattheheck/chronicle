@@ -19,7 +19,7 @@ def git(*args):
     return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
 
 def replace_once(path, old, new):
-    text = path.read_bytes().decode('utf-8')
+    text = path.read_text(encoding='utf-8')
     if text.count(old) != 1:
         raise RuntimeError('Exact source segment changed: ' + str(path))
     path.write_bytes(text.replace(old, new, 1).encode('utf-8'))
@@ -35,7 +35,7 @@ shutil.copyfile(controller / test.name, test)
 subprocess.run(['gofmt', '-w', str(test)], check=True)
 test_digest = hashlib.sha256(test.read_bytes()).hexdigest()
 command = ['go', 'test', '-count=1', '-short', '-p=2', '-timeout=90s', '-json', '-run', '^TestRaftResourceLifecycle$', './internal/raft']
-record = {'baseline': BASE, 'os': platform.platform(), 'python': sys.version, 'go': subprocess.check_output(['go','version'], text=True).strip(), 'command': command, 'test_sha256': test_digest, 'source_blobs_before': {'core.go': git('hash-object', 'internal/raft/core.go'), 'log.go': git('hash-object', 'internal/raft/log.go')}}
+record = {'baseline': BASE, 'os': platform.platform(), 'python': sys.version, 'go': subprocess.check_output(['go','version'], text=True).strip(), 'command': command, 'test_sha256': test_digest, 'source_blobs_before': {'core.go': git('hash-object', 'internal/raft/core.go'), 'log.go': git('hash-object', 'internal/raft/log.go')}, 'previous_run': 37191917494, 'harness_correction': 'Use actual Windows file removal, not os.ErrClosed identity from Stat; the first run reproduced all three leaks but falsely failed the closed-handle control.'}
 (evidence / 'provenance.json').write_text(json.dumps(record, indent=2), encoding='utf-8')
 
 def execute(label):

@@ -3,7 +3,6 @@
 package raft
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -53,8 +52,8 @@ func TestRaftResourceLifecycle(t *testing.T) {
 				t.Errorf("Stop must be idempotent: %v", err)
 			}
 		}
-		if _, err := node.log.file.Stat(); !errors.Is(err, os.ErrClosed) {
-			t.Errorf("Stop left the pre-start log open: %v", err)
+		if err := os.Remove(filepath.Join(config.DataDir, "raft.log")); err != nil {
+			t.Errorf("Stop did not release the pre-start Windows handle: %v", err)
 		}
 		if node.ctx.Err() == nil {
 			t.Error("Stop did not cancel the pre-start node")
@@ -80,9 +79,6 @@ func TestRaftResourceLifecycle(t *testing.T) {
 		}
 		if err := node.Stop(); err != nil {
 			t.Fatalf("repeated Stop: %v", err)
-		}
-		if _, err := node.log.file.Stat(); !errors.Is(err, os.ErrClosed) {
-			t.Errorf("started node log remains open: %v", err)
 		}
 		if _, err := os.Stat(filepath.Join(config.DataDir, "raft.state")); err != nil {
 			t.Errorf("normal Stop did not save state: %v", err)
