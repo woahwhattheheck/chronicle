@@ -1,0 +1,43 @@
+name: Focused native Windows Raft lifecycle
+'on':
+  push:
+    branches: [validation/chronicle104-raft-lifecycle-20261004]
+    paths: [.github/workflows/raft-lifecycle-windows.yml, prepare.py, resource_lifecycle_windows_test.go]
+permissions:
+  contents: write
+concurrency:
+  group: chronicle104-raft-lifecycle-20261004
+  cancel-in-progress: false
+jobs:
+  lifecycle:
+    if: github.repository == 'woahwhattheheck/chronicle'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+      PYTHONIOENCODING: utf-8
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: controller
+        persist-credentials: false
+    - uses: actions/checkout@v4
+      with:
+        ref: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+        path: subject
+        fetch-depth: 1
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.13'
+        cache: true
+        cache-dependency-path: subject/go.sum
+    - name: Reproduce, repair and execute only the lifecycle cases
+      shell: pwsh
+      run: python controller/prepare.py subject
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: chronicle104-raft-lifecycle
+        path: evidence/
+        retention-days: 14
+        if-no-files-found: error

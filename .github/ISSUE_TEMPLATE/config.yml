@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: ❓ Ask a Question
-    url: https://github.com/josedab/chronicle/discussions/categories/q-a
-    about: Use GitHub Discussions for questions and help. Issues are for bugs and feature requests.
-  - name: 💡 Share an Idea
-    url: https://github.com/josedab/chronicle/discussions/categories/ideas
-    about: Suggest ideas or discuss potential features before opening a formal feature request.
