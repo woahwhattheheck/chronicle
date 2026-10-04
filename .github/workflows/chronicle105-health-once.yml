@@ -1,0 +1,73 @@
+name: Sidecar health bind validation
+on:
+  push:
+    branches: [validation/chronicle105-health-copper-20261004]
+    paths:
+      - .github/workflows/chronicle105-health-once.yml
+      - k8s_sidecar_health_lifecycle_test.go
+permissions:
+  contents: read
+jobs:
+  health-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 2052a9fa68ecad868e82f894c2e75fa3c33679c7
+          fetch-depth: 2
+          path: subject
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: subject/go.mod
+          cache-dependency-path: subject/go.sum
+      - name: Record exact source and stage the regression
+        shell: bash
+        run: |
+          mkdir -p evidence
+          test "$(git -C subject rev-parse HEAD)" = 2052a9fa68ecad868e82f894c2e75fa3c33679c7
+          test "$(git -C subject rev-parse HEAD:k8s_sidecar.go)" = a2aeeb25388c7552d7310016eca5ed7a015a3ee9
+          test "$(git -C subject rev-parse HEAD^)" = 9904db19571e9d52d1bb8a434ff8ab50bbdbe7dc
+          { go version; git -C subject rev-parse HEAD HEAD^{tree} HEAD:k8s_sidecar.go HEAD^:k8s_sidecar.go; sha256sum k8s_sidecar_health_lifecycle_test.go; } | tee evidence/source.txt
+          cp k8s_sidecar_health_lifecycle_test.go subject/
+      - name: Reproduce the occupied-port failure on the previous source
+        shell: bash
+        working-directory: subject
+        run: |
+          git show 9904db19571e9d52d1bb8a434ff8ab50bbdbe7dc:k8s_sidecar.go > k8s_sidecar.go
+          set +e
+          go test -v -run '^TestK8sSidecarHealthBindFailureAndRetry$' -count=1 -timeout=60s . > ../evidence/before.log 2>&1
+          status=$?
+          set -e
+          cat ../evidence/before.log
+          printf '%s\n' "$status" > ../evidence/before.exit
+          test "$status" -ne 0
+          grep -F 'Start accepted an occupied health port' ../evidence/before.log
+      - name: Verify the released repair and existing example tests
+        shell: bash
+        working-directory: subject
+        run: |
+          git show 2052a9fa68ecad868e82f894c2e75fa3c33679c7:k8s_sidecar.go > k8s_sidecar.go
+          test "$(git hash-object k8s_sidecar.go)" = a2aeeb25388c7552d7310016eca5ed7a015a3ee9
+          go test -v -run '^TestK8sSidecarHealthBindFailureAndRetry$' -count=1 -timeout=60s . 2>&1 | tee ../evidence/after.log
+          cd examples/kubernetes-sidecar
+          go test -v -count=1 -timeout=60s . 2>&1 | tee ../../../evidence/example.log
+          go build -o ../../../evidence/sidecar-example .
+      - name: Retain source-bound results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle105-health-2052a9fa
+          path: |
+            evidence/source.txt
+            evidence/*.log
+            evidence/*.exit
+          if-no-files-found: warn
+          retention-days: 14
