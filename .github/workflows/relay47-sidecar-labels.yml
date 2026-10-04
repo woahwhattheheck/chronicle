@@ -1,4 +1,4 @@
-name: Chronicle sidecar label acceptance
+name: Chronicle sidecar numeric throughput
 on:
   push:
     branches: [validation/chronicle105-labels-relay47-20261004]
@@ -8,13 +8,13 @@ concurrency:
   group: chronicle105-labels-relay47
   cancel-in-progress: false
 jobs:
-  quoted-labels:
+  numeric-throughput:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
       GOMAXPROCS: '2'
       GOFLAGS: '-p=2'
-      SOURCE: 584818a0609718005e2de36384bd723d5d4df153
+      SOURCE: bd05cac196e8d6fd39fb473d84c933003902ee95
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,52 +22,51 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: 584818a0609718005e2de36384bd723d5d4df153
+          ref: bd05cac196e8d6fd39fb473d84c933003902ee95
           path: subject
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24.4'
           cache-dependency-path: subject/go.sum
-      - name: Reproduce and repair the actual package
+      - name: Measure and repair numeric conversion
         working-directory: subject
         shell: bash
         env:
-          EVIDENCE: ${{ runner.temp }}/sidecar-label-evidence
+          EVIDENCE: ${{ runner.temp }}/sidecar-value-evidence
         run: |
           set -euo pipefail
           mkdir -p "$EVIDENCE"
           test "$(git rev-parse HEAD)" = "$SOURCE"
-          test "$(git hash-object k8s_sidecar.go)" = 95f3619f1b9d11b7cfbc78437d24c18d6278e29b
-          test ! -e k8s_sidecar_prometheus_labels_test.go
+          test "$(git hash-object k8s_sidecar.go)" = 55ee94e0c3e3c54f672505afa95890292029a3bd
+          test ! -e k8s_sidecar_prometheus_values_test.go
           { git rev-parse HEAD HEAD^{tree}; git hash-object k8s_sidecar.go; go version; } > "$EVIDENCE/source.txt"
-          cp ../carrier/k8s_sidecar_prometheus_labels_test.go .
+          cp ../carrier/k8s_sidecar_prometheus_values_test.go .
           set +e
-          go test -v -run '^TestK8sSidecarPrometheus(QuotedLabels|LabelRecovery)$' -count=1 -timeout=60s . > "$EVIDENCE/before.log" 2>&1
+          go test -v -run '^TestK8sSidecarPrometheusRejectNumericSuffix$' -count=1 -timeout=60s . > "$EVIDENCE/before.log" 2>&1
           before=$?
           set -e
           echo "$before" > "$EVIDENCE/before.exit"
           cat "$EVIDENCE/before.log"
           test "$before" = 1
-          grep -q 'valid sample was dropped' "$EVIDENCE/before.log"
-          grep -q 'wrong sample:' "$EVIDENCE/before.log"
+          grep -q 'accepted invalid value' "$EVIDENCE/before.log"
           go test -run '^$' -bench '^BenchmarkK8sSidecarPrometheusPlainLabels$' -benchmem -benchtime=100ms -count=3 -timeout=60s . | tee "$EVIDENCE/before-bench.log"
-          python ../carrier/repair.py
-          gofmt -w k8s_sidecar.go k8s_sidecar_prometheus_labels_test.go
+          python ../carrier/numbers.py
+          gofmt -w k8s_sidecar.go k8s_sidecar_prometheus_values_test.go
           git diff --check
-          go test -v -run '^TestK8sSidecarPrometheus(QuotedLabels|LabelRecovery)$' -count=1 -timeout=60s . | tee "$EVIDENCE/after.log"
+          go test -v -run '^TestK8sSidecarPrometheus' -count=1 -timeout=60s . | tee "$EVIDENCE/after.log"
           go test -run '^$' -bench '^BenchmarkK8sSidecarPrometheusPlainLabels$' -benchmem -benchtime=100ms -count=3 -timeout=60s . | tee "$EVIDENCE/after-bench.log"
           git diff --exit-code -- go.mod go.sum
           test "$(git diff --name-only)" = k8s_sidecar.go
           git diff -- k8s_sidecar.go > "$EVIDENCE/source.patch"
-          cp k8s_sidecar.go k8s_sidecar_prometheus_labels_test.go "$EVIDENCE/"
-          git add k8s_sidecar.go k8s_sidecar_prometheus_labels_test.go
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix(sidecar): preserve quoted Prometheus labels [skip ci]'
+          cp k8s_sidecar.go k8s_sidecar_prometheus_values_test.go "$EVIDENCE/"
+          git add k8s_sidecar.go k8s_sidecar_prometheus_values_test.go
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'perf(sidecar): parse numeric samples without scanning overhead [skip ci]'
           test "$(git rev-parse HEAD^)" = "$SOURCE"
-          { git rev-parse HEAD HEAD^{tree}; git hash-object k8s_sidecar.go k8s_sidecar_prometheus_labels_test.go; git show --stat --oneline HEAD; } | tee "$EVIDENCE/candidate.txt"
-          git push origin HEAD:refs/heads/relay47/chronicle105-labels-candidate-20261004
+          { git rev-parse HEAD HEAD^{tree}; git hash-object k8s_sidecar.go k8s_sidecar_prometheus_values_test.go; git show --stat --oneline HEAD; } | tee "$EVIDENCE/candidate.txt"
+          git push origin HEAD:refs/heads/relay47/chronicle105-values-candidate-20261004
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: chronicle105-labels-relay47
-          path: ${{ runner.temp }}/sidecar-label-evidence
+          name: chronicle105-values-relay47
+          path: ${{ runner.temp }}/sidecar-value-evidence
           if-no-files-found: error
