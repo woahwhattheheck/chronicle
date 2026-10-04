@@ -386,9 +386,7 @@ func TestFlightSQLServer_HandleStatementQuery(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Keep both rows inside the default last-hour range, whose upper bound is
-	// exclusive. A Windows clock tick may not advance between write and query.
-	now := time.Now().Add(-time.Minute).UnixNano()
+	now := time.Now().UnixNano()
 	points := []Point{
 		{Metric: "cpu", Tags: map[string]string{"host": "server1"}, Value: 42.5, Timestamp: now},
 		{Metric: "cpu", Tags: map[string]string{"host": "server2"}, Value: 73.1, Timestamp: now + 1},

@@ -70,6 +70,7 @@ type FlightSQLServer struct {
 	sessions           map[string]*flightSQLSession
 	preparedStatements map[string]*preparedStatement
 	sessionMu          sync.RWMutex
+	statementSequence  uint64
 
 	// Concurrency limiter.
 	streamSem chan struct{}
@@ -554,11 +555,9 @@ func (s *FlightSQLServer) GetFlightInfoStatement(sql string) (*FlightInfo, error
 		return nil, fmt.Errorf("empty SQL statement")
 	}
 
-	// Generate a unique ticket for this query
-	ticketID := fmt.Sprintf("stmt-%d", time.Now().UnixNano())
-
 	// Store the prepared statement for later DoGet
 	s.sessionMu.Lock()
+	ticketID := s.nextStatementIDLocked("stmt")
 	s.preparedStatements[ticketID] = &preparedStatement{
 		id:      ticketID,
 		sql:     sql,
@@ -597,10 +596,10 @@ func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSch
 		return "", nil, fmt.Errorf("SQL queries are disabled")
 	}
 
-	stmtID := fmt.Sprintf("prepared-%d", time.Now().UnixNano())
 	schema := ChronicleSchema()
 
 	s.sessionMu.Lock()
+	stmtID := s.nextStatementIDLocked("prepared")
 	s.preparedStatements[stmtID] = &preparedStatement{
 		id:      stmtID,
 		sql:     sql,
@@ -610,6 +609,18 @@ func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSch
 	s.sessionMu.Unlock()
 
 	return stmtID, &schema, nil
+}
+
+// nextStatementIDLocked allocates an opaque ID while sessionMu is held.
+// Clock ticks can repeat, and the wire protocol can supply existing IDs.
+func (s *FlightSQLServer) nextStatementIDLocked(prefix string) string {
+	for {
+		s.statementSequence++
+		id := fmt.Sprintf("%s-%d", prefix, s.statementSequence)
+		if _, exists := s.preparedStatements[id]; !exists {
+			return id
+		}
+	}
 }
 
 // ClosePreparedStatement closes a previously created prepared statement.

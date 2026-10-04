@@ -1,0 +1,34 @@
+name: Chronicle104 FlightSQL identity acceptance Relay17
+
+on:
+  push:
+    branches: [validation/chronicle104-flightsql-relay17-20261004]
+
+permissions:
+  contents: read
+
+jobs:
+  flightsql:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Run one native baseline and candidate selection
+        shell: pwsh
+        run: python work/validation/chronicle104-flightsql-relay17/run.py
+      - name: Retain exact source and raw execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle104-flightsql-relay17
+          path: flight-evidence/
+          retention-days: 14
