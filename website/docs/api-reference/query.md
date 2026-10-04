@@ -91,9 +91,12 @@ type TagFilter struct {
 
 ```go
 const (
-    TagOpEq    TagOp = iota // Equals
-    TagOpNotEq              // Not equals
-    TagOpIn                 // In list
+    TagOpEq       TagOp = iota // Equals (0)
+    TagOpNotEq                 // Not equals (1)
+    TagOpIn                    // In list (2)
+    TagOpRegex                 // Regex match (3)
+    TagOpNotRegex              // Negated regex match (4)
+    TagOpNotIn                 // Not in list (5)
 )
 ```
 
@@ -108,7 +111,14 @@ chronicle.TagFilter{Key: "env", Op: chronicle.TagOpNotEq, Values: []string{"dev"
 
 // region IN ("us-west", "us-east")
 chronicle.TagFilter{Key: "region", Op: chronicle.TagOpIn, Values: []string{"us-west", "us-east"}}
+
+// host NOT IN ("web-1", "web-2")
+chronicle.TagFilter{Key: "host", Op: chronicle.TagOpNotIn, Values: []string{"web-1", "web-2"}}
 ```
+
+`TagOpNotIn` is appended after the regex operators so their existing numeric values remain unchanged. Use the named constants rather than assuming the public operators share the internal SQL parser's enum values.
+
+An exclusion rejects a series when its tag value equals any value in the list. A series without that tag still matches `TagOpNotIn`. All entries in `TagFilters` are combined with AND, so use a separate positive filter when the query must also restrict the allowed values.
 
 ## Aggregation
 
