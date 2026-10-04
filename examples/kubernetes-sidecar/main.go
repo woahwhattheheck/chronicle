@@ -14,6 +14,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -69,6 +70,9 @@ func parseOptions(args []string) (options, error) {
 	}
 	if !strings.HasPrefix(cfg.metricsPath, "/") || strings.ContainsAny(cfg.metricsPath, "?#") {
 		return cfg, errors.New("metrics-path must be an absolute URL path without a query or fragment")
+	}
+	if _, err := url.ParseRequestURI(cfg.metricsPath); err != nil {
+		return cfg, fmt.Errorf("invalid metrics-path: %w", err)
 	}
 	if cfg.scrapeInterval <= 0 || cfg.scrapeTimeout <= 0 || cfg.retention <= 0 {
 		return cfg, errors.New("scrape-interval, scrape-timeout, and retention must be positive")
@@ -182,10 +186,18 @@ func run(ctx context.Context, cfg options) (result error) {
 }
 
 func startDemoAppMetrics(port int, path string) (*http.Server, <-chan error, error) {
-	mux := http.NewServeMux()
+	metricsURL, err := url.ParseRequestURI(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid metrics-path: %w", err)
+	}
 	start := time.Now()
 	var requests atomic.Int64
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	// The configured endpoint is a literal URL path, not a ServeMux pattern.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != metricsURL.Path {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		uptime := time.Since(start).Seconds()
 		fmt.Fprintln(w, "# HELP demo_up Always 1 while the demo app is healthy")
@@ -207,7 +219,7 @@ func startDemoAppMetrics(port int, path string) (*http.Server, <-chan error, err
 	}
 	server := &http.Server{
 		Addr:              listener.Addr().String(),
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	failures := make(chan error, 1)

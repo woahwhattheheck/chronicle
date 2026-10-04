@@ -33,6 +33,7 @@ func TestParseOptionsRejectsUnusableConfiguration(t *testing.T) {
 		"-mode=unknown", "-metrics-port=0", "-health-port=65536",
 		"-http-port=9090", "-metrics-path=metrics", "-metrics-path=/metrics?x=1",
 		"-scrape-interval=0", "-scrape-timeout=-1s", "-retention=0", "extra-argument",
+		"-metrics-path=/metrics/%xy", "-metrics-path=/metrics/\t",
 	} {
 		t.Run(arg, func(t *testing.T) {
 			if _, err := parseOptions([]string{arg}); err == nil {
@@ -98,6 +99,66 @@ func TestDemoPodInfoPreservesDownwardAPI(t *testing.T) {
 	} {
 		if got := envOr(key, ""); got != expected {
 			t.Fatalf("%s = %q, want %q", key, got, expected)
+		}
+	}
+}
+
+func TestAppMetricsPathIsLiteral(t *testing.T) {
+	for _, path := range []string{"/metrics", "/metrics/{", "/metrics/{name}", "/metrics/{$}", "/metrics/", "/", "/metrics/%7Bname%7D", "/metrics/%2F", "/metrics/100%25"} {
+		t.Run(path, func(t *testing.T) {
+			cfg, err := parseOptions([]string{"-mode=app", "-metrics-path=" + path})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if value := recover(); value != nil {
+					t.Errorf("accepted literal metrics path %q panicked: %v", path, value)
+				}
+			}()
+			server, _, err := startDemoAppMetrics(0, cfg.metricsPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = server.Close() })
+			_, port, err := net.SplitHostPort(server.Addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := &http.Client{Timeout: 2 * time.Second}
+			for _, request := range []struct {
+				path string
+				code int
+			}{
+				{path, http.StatusOK},
+				{path + "?scrape=1", http.StatusOK},
+				{"/metrics/unrelated", http.StatusNotFound},
+				{path + "/unrelated", http.StatusNotFound},
+			} {
+				response, err := client.Get("http://127.0.0.1:" + port + request.path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				body, err := io.ReadAll(response.Body)
+				_ = response.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if response.StatusCode != request.code || (request.code == http.StatusOK && !strings.Contains(string(body), "demo_up 1\n")) {
+					t.Errorf("GET %q = %d, want %d; body: %s", request.path, response.StatusCode, request.code, body)
+				}
+			}
+		})
+	}
+}
+
+func TestAppRejectsMalformedMetricsPath(t *testing.T) {
+	for _, path := range []string{"/metrics/%xy", "/metrics/\t"} {
+		server, _, err := startDemoAppMetrics(0, path)
+		if server != nil {
+			_ = server.Close()
+		}
+		if err == nil {
+			t.Errorf("expected invalid metrics path %q to return an error", path)
 		}
 	}
 }
