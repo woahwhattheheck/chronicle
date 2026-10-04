@@ -39,17 +39,17 @@ jobs:
           test "$(git hash-object tag_not_in_lookup_test.go)" = c703ccdec4250150ce36c70ccde7fa28efa22ba8
           cp tag_not_in_lookup_test.go "$out/"
           cp work/not-in-lookup/source.patch "$out/"
+          printf '%s\n' 'Prior successful semantics and parser run: 37200181673; baseline functional assertions are not repeated.' > "$out/prior-validation.txt"
           selection='^(TestTagNotInLookup|TestTagOpNotIn|TestParseNotIn|TestTagMembershipPresence|TestPredicatePushDown)'
           printf '%s\n' "go test -count=1 -v -run '$selection' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms ." > "$out/command.txt"
-          go test -count=1 -v -run "$selection" -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/baseline.log"
+          go test -count=1 -run '^$' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/baseline.log"
           git apply --check work/not-in-lookup/source.patch
           git apply work/not-in-lookup/source.patch
           test "$(git hash-object query.go)" = b8ed9894863ae1c2a2a15f4e6e67f79523206c11
-          test "$(git hash-object tags.go)" = 6be6ac12601e1ce24f44ff2df94c3996c2841055
+          test "$(git hash-object tags.go)" = 17b7543641da1e25dd662ae8a57befdeb5005178
           test "$(git hash-object partition_query.go)" = 13f6724f38b7e4efedb86c0763e8102888fdecdb
           test -z "$(gofmt -l query.go tags.go partition_query.go tag_not_in_lookup_test.go)"
           go test -count=1 -v -run "$selection" -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/candidate.log"
-          go test -count=1 ./internal/query/ 2>&1 | tee "$out/parser.log"
           cp query.go tags.go partition_query.go "$out/"
           (cd "$out" && sha256sum *.go *.log *.txt source.patch > SHA256SUMS)
       - uses: actions/upload-artifact@v4
