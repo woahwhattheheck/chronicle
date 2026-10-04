@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -147,6 +148,13 @@ More text here
 	}
 	if len(nb.Cells) == 0 {
 		t.Error("expected cells")
+	}
+
+	if len(nb.Cells) != 4 {
+		t.Fatalf("expected four cells, including prose after the query; got %d", len(nb.Cells))
+	}
+	if nb.Cells[2].Type != CellMarkdown || !strings.Contains(nb.Cells[2].Source, "More text here") {
+		t.Fatalf("lost markdown after fenced query: %#v", nb.Cells[2])
 	}
 
 	// Should have markdown, query, markdown, and chart cells
