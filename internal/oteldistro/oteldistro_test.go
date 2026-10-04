@@ -461,8 +461,23 @@ func TestDistroMetrics(t *testing.T) {
 		t.Error("Expected non-zero start time")
 	}
 
-	if metrics.Uptime <= 0 {
-		t.Error("Expected positive uptime")
+	// Construction and observation may occur in the same clock tick.
+	if metrics.Uptime < 0 {
+		t.Error("Expected nonnegative initial uptime")
+	}
+
+	// Exercise positive elapsed time without relying on sleeps or clock
+	// resolution. No distro workers have been started in this fixture.
+	start := time.Now().Add(-time.Second)
+	distro.metrics.mu.Lock()
+	distro.metrics.StartTime = start
+	distro.metrics.mu.Unlock()
+	metrics = distro.GetMetrics()
+	if !metrics.StartTime.Equal(start) {
+		t.Error("Expected the recorded start time to be preserved")
+	}
+	if metrics.Uptime < time.Second || metrics.Uptime > time.Since(start) {
+		t.Errorf("Expected uptime derived from the elapsed fixture interval, got %v", metrics.Uptime)
 	}
 }
 
