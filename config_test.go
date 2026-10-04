@@ -732,7 +732,13 @@ func TestConfig_DeprecationNormalization(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := Config{Path: "/test/path.db"}
+			cfg := Config{
+				Path: "/test/path.db",
+				Storage: StorageConfig{
+					PartitionDuration: time.Hour,
+					BufferSize:        10_000,
+				},
+			}
 			tt.setup(&cfg)
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
