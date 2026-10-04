@@ -35,6 +35,9 @@ jobs:
           test -z "$(git ls-remote --heads origin "refs/heads/$PRODUCT_REF")"
           mkdir -p evidence
           { git rev-parse HEAD; go version; go env GOOS GOARCH CGO_ENABLED; } | tee evidence/provenance.txt
+          git show HEAD:multi_modal_correlate.go > multi_modal_correlate.go
+          git show HEAD:multi_modal_correlate_test.go > multi_modal_correlate_test.go
+          python -c "from pathlib import Path; p=Path('../dispatch/.github/multimodal-id.patch'); p.write_bytes(p.read_bytes().replace(b'\r\n',b'\n'))"
           test "$(git hash-object multi_modal_correlate.go)" = bfe969740bfb43a676bf138ee40a438d4d01fdef
           test "$(git hash-object multi_modal_correlate_test.go)" = 58222fac0b33e3397954949b0a34f4112d6807bf
           git apply ../dispatch/.github/multimodal-id.patch
