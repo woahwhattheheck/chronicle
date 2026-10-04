@@ -1,0 +1,132 @@
+name: Notebook Windows acceptance
+on:
+  push:
+    branches: [validation/notebook-windows-quarry03e4-20261004]
+    paths: [.github/workflows/notebook-windows-03e4.yml]
+permissions:
+  contents: write
+jobs:
+  notebooks:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Prepare the source-pinned repair
+        shell: python
+        run: |
+          import pathlib, subprocess, hashlib, json, platform
+          root = pathlib.Path('.')
+          out = root / 'notebook-evidence'
+          out.mkdir()
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          expected = {'notebooks.go': '837e75eb49605b2c051a4eb31527ceb662f12543', 'notebooks_test.go': '608c5a75e4c2d1393c4279d88d1a5dbe3e6dbfcc'}
+          for name, sha in expected.items():
+              assert git('hash-object', name) == sha, name + ' changed'
+          p = root / 'notebooks.go'
+          s = p.read_text(encoding='utf-8')
+          def once(old, new):
+              global s
+              assert s.count(old) == 1, old
+              s = s.replace(old, new, 1)
+          once('\t"sync"\n', '\t"sync"\n\t"sync/atomic"\n')
+          once('// NotebookCellType represents', '// A process-wide sequence keeps generated IDs distinct when clock ticks repeat.\nvar notebookIDSequence atomic.Uint64\n\n// NotebookCellType represents')
+          once('fmt.Sprintf("nb-%d", time.Now().UnixNano())', 'fmt.Sprintf("nb-%d-%d", time.Now().UnixNano(), notebookIDSequence.Add(1))')
+          once('fmt.Sprintf("cell-%d", time.Now().UnixNano())', 'fmt.Sprintf("cell-%d-%d", time.Now().UnixNano(), notebookIDSequence.Add(1))')
+          once('\t\t\t// End code block\n\t\t\tinCodeBlock = false', '\t\t\t// End code block; subsequent prose starts a new markdown cell.\n\t\t\tcurrentCell = nil\n\t\t\tinCodeBlock = false')
+          p.write_text(s, encoding='utf-8', newline='\n')
+          t = root / 'notebooks_test.go'
+          s = t.read_text(encoding='utf-8')
+          s = s.replace('"testing"', '"testing"\n\t"sync"\n\t"strings"', 1)
+          marker = '\t// Should have markdown, query, markdown, and chart cells\n'
+          assert s.count(marker) == 1
+          s = s.replace(marker, '\tif len(nb.Cells) != 4 {\n\t\tt.Fatalf("expected four cells, including prose after the query; got %d", len(nb.Cells))\n\t}\n\tif nb.Cells[2].Type != CellMarkdown || !strings.Contains(nb.Cells[2].Source, "More text here") {\n\t\tt.Fatalf("lost markdown after fenced query: %#v", nb.Cells[2])\n\t}\n\n' + marker, 1)
+          s += '''
+          // Multiple engines and callers may allocate within one Windows clock tick.
+          func TestNotebookGeneratedIDs(t *testing.T) {
+              const workers, each = 8, 16
+              ids := make(chan string, workers*each*3)
+              var wg sync.WaitGroup
+              for worker := 0; worker < workers; worker++ {
+                  wg.Add(1)
+                  go func() {
+                      defer wg.Done()
+                      engine := NewNotebookEngine(nil, DefaultNotebookConfig())
+                      for n := 0; n < each; n++ {
+                          nb, err := engine.CreateNotebook(Notebook{Title: "retained"})
+                          if err != nil { t.Error(err); return }
+                          ids <- nb.ID
+                          for c := 0; c < 2; c++ {
+                              if err := engine.AddCell(nb.ID, NotebookCell{Type: CellMarkdown, Source: "text"}); err != nil {
+                                  t.Error(err); return
+                              }
+                          }
+                          for _, cell := range nb.Cells { ids <- cell.ID }
+                      }
+                      if got := len(engine.ListNotebooks()); got != each {
+                          t.Errorf("lost notebooks: got %d, want %d", got, each)
+                      }
+                  }()
+              }
+              wg.Wait()
+              close(ids)
+              seen := make(map[string]bool)
+              for id := range ids {
+                  if seen[id] { t.Errorf("duplicate generated ID: %s", id) }
+                  seen[id] = true
+              }
+              if got := len(seen); got != workers*each*3 {
+                  t.Errorf("distinct notebook/cell IDs: got %d, want %d", got, workers*each*3)
+              }
+          }
+          '''
+          t.write_text(s, encoding='utf-8', newline='\n')
+          subprocess.run(['gofmt', '-w', 'notebooks.go', 'notebooks_test.go'], check=True)
+          metadata = {'base': 'f929136a0ee36c3c9693496c48582ffdd5d6e288', 'workflow_head': git('rev-parse', 'HEAD'), 'platform': platform.platform(), 'files': {name: {'before': sha, 'after': git('hash-object', name)} for name, sha in expected.items()}}
+          (out / 'source.patch').write_bytes(subprocess.check_output(['git', 'diff', '--', *expected]))
+          for name in expected:
+              (out / name).write_bytes((root / name).read_bytes())
+          # Return only the existing helper source needed for the separate ID diagnosis.
+          found = subprocess.run(['git', 'grep', '-l', 'func generateAlertID', '--', '*.go'], capture_output=True, text=True)
+          (out / 'alert-helper-paths.txt').write_text(found.stdout, encoding='utf-8')
+          for name in found.stdout.splitlines():
+              (out / pathlib.Path(name).name).write_bytes((root / name).read_bytes())
+          (out / 'provenance.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+      - name: Run only notebook acceptance tests
+        shell: python
+        run: |
+          import subprocess, pathlib, json
+          out = pathlib.Path('notebook-evidence')
+          cmd = ['go', 'test', '-count=1', '-timeout=120s', '-json', '-run', '^TestNotebook', '.']
+          with (out / 'tests.jsonl').open('wb') as stdout, (out / 'stderr.log').open('wb') as stderr:
+              p = subprocess.run(cmd, stdout=stdout, stderr=stderr, timeout=600)
+          events = []
+          for line in (out / 'tests.jsonl').read_text(encoding='utf-8').splitlines():
+              try: events.append(json.loads(line))
+              except ValueError: pass
+          result = {'command': cmd, 'exit_code': p.returncode, 'passed': [e['Test'] for e in events if e.get('Test') and e.get('Action') == 'pass'], 'failed': [e['Test'] for e in events if e.get('Test') and e.get('Action') == 'fail'], 'go': subprocess.check_output(['go', 'version'], text=True).strip()}
+          (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+          print(json.dumps(result, indent=2))
+          raise SystemExit(p.returncode)
+      - name: Preserve the tested candidate on this validation branch only
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- notebooks.go notebooks_test.go
+          git commit -m 'fix(notebooks): keep generated IDs and post-query prose distinct [skip ci]'
+          git push origin HEAD:refs/heads/validation/notebook-windows-quarry03e4-20261004
+          git rev-parse HEAD > notebook-evidence/candidate-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-windows-03e4
+          path: notebook-evidence/
+          retention-days: 7
+          if-no-files-found: error
