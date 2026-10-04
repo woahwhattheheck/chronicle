@@ -1,0 +1,81 @@
+name: Publish recorded branch identity repair
+on:
+  push:
+    branches: [verify/branch-identities-20261004-0b59]
+    paths: [.github/workflows/publish-branch-identities-0b59.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      RECORDED_EVIDENCE: ${{ runner.temp }}/recorded-branch-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8ae0a1fc68721de5ab2eefbdb734f63e90f8baaf
+          fetch-depth: 2
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.13
+          cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-branch-identity-evidence
+          path: ${{ runner.temp }}/recorded-branch-evidence
+          run-id: 37205348415
+          github-token: ${{ github.token }}
+      - name: Reconstruct the executed recipe without repeating tests
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, textwrap
+          controller = "8ae0a1fc68721de5ab2eefbdb734f63e90f8baaf"
+          assert subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == controller
+          workflow = pathlib.Path(".github/workflows/windows-branch-identities-0b59.yml").read_text()
+          program = textwrap.dedent(workflow.split("        run: |\n", 1)[1].split("\n      - uses: actions/upload-artifact", 1)[0])
+          start = program.index("def execute(")
+          end = program.index("\nbaseline = execute(", start)
+          stop = program.index("\nafter = execute(", end)
+          replacement = '''def execute(label, selection):
+              saved = pathlib.Path(os.environ["RECORDED_EVIDENCE"])
+              result = json.loads((saved / (label + "-summary.json")).read_text())
+              assert result["command"][-2:] == [selection, "."]
+              for path in saved.iterdir():
+                  if path.is_file():
+                      (evidence / path.name).write_bytes(path.read_bytes())
+              return result
+          '''
+          program = program[:start] + replacement + program[end:stop]
+          assert "subprocess.run(command" not in program
+          subprocess.run(["git", "switch", "--detach", "8c977e6283e9c6a145f509ca097f9a2746e7324b"], check=True)
+          exec(compile(program, "recorded-controller-reconstruction", "exec"), globals())
+          saved = pathlib.Path(os.environ["RECORDED_EVIDENCE"])
+          after = json.loads((saved / "after-summary.json").read_text())
+          top = {e["test"]: e["action"] for e in after["events"] if "/" not in e["test"]}
+          assert top == {"TestTSBranchIdentityUniqueness": "pass", "TestTSBranchHistoryIdentities": "pass", "TestBranchDiff": "pass", "TestManualMergeConflict": "pass", "TestTSDiffMerge_DiffBranches": "fail"}
+          assert after["exit_code"] == 1
+          raw = (saved / "after.jsonl").read_text()
+          assert "expected positive diff duration" in raw
+          provenance = {"recorded_run": "https://github.com/woahwhattheheck/chronicle/actions/runs/37205348415", "recorded_controller": controller, "recorded_base": BASE, "recorded_local_candidate_prefix": "a3d7fbc", "published_reconstruction": product, "production_blob": git("hash-object", "ts_branching_diff.go"), "regression_blob": git("hash-object", "ts_branching_identity_test.go"), "recorded_runtime": "Windows Server 2025 Datacenter 10.0.26100 amd64; Go 1.24.13; CGO_ENABLED=0", "tests_repeated_in_publication": False, "before": baseline, "after": after}
+          report = "# Windows branch and commit identities\n\n## Production repair\n\nThe timestamp-only branch and commit allocators both repeated IDs in a native Windows run. New branches could share a parent's key, and repeated commit keys could overwrite history. A process-wide atomic sequence now disambiguates both allocators while retaining their existing prefixes and timestamp component. The registries are process-local; this does not add persistent or distributed identity guarantees. No dependencies, merge policies, point storage, or lock protocols changed.\n\n## Recorded native execution: October 4, 2026\n\n[Run 37205348415](https://github.com/woahwhattheheck/chronicle/actions/runs/37205348415) used Windows Server 2025 Datacenter, 10.0.26100, amd64, Go 1.24.13 and `CGO_ENABLED=0`. The original source plus the new regression failed both allocator checks and the history group. After the allocator repair, four selected top-level groups passed: identity uniqueness, commit history, the maintained branch diff, and the maintained manual merge conflict. The two allocator subcases also passed. No clock was mocked.\n\n**The five-group command exited 1**, because `TestTSDiffMerge_DiffBranches` rejected a zero measured duration with `expected positive diff duration`. That is a separate assertion in the other diff engine, not an identity failure. Its result is retained; neither the assertion nor production timing was changed, and there is no five-group or repository-wide pass claim.\n\nThe identity group uses 8 concurrent workers and 1,024 IDs each for each allocator. The history group checks distinct branches and 32 sequential commit identities and parent links using only in-memory manager operations. The two maintained passing groups retain their real database setup.\n\n## Source and publication\n\nThe first controller stopped before pushing its local candidate `a3d7fbc` because the broader selection contained the duration failure. Publication reconstructed the same immutable controller recipe against its pinned source and blob, using Go 1.24.13 formatting, and retained the mixed results without repeating tests. The full source hashes below identify the published reconstruction; the original job did not emit post-repair blob hashes before its stop. The original recipe, source preimage, complete JSON output, and separate publication commit make that distinction explicit.\n\nThe original `windows-branch-identity-evidence` artifact is retained for 14 days. The publication artifact also retains its raw logs and the reconstructed source files. These results do not establish upstream CI approval, cgo or race-detector execution, bounty acceptance, or payment.\n\n## Focused reproduction\n\n```powershell\n$env:CGO_ENABLED = '0'\ngo test -json -count=1 -short -p=2 -timeout=4m -run '^(TestTSBranchIdentityUniqueness|TestTSBranchHistoryIdentities|TestBranchDiff|TestManualMergeConflict)$' .\n```\n\nThe command above selects the four groups that passed in the recorded broader invocation; it is provided for reproduction and was not run separately.\n\n## Recorded results and source pins\n\n```json\n" + json.dumps(provenance, indent=2) + "\n```\n"
+          pathlib.Path("docs/WINDOWS_BRANCH_IDENTITIES.md").write_text(report, encoding="utf-8", newline="\n")
+          checked("git", "add", "docs/WINDOWS_BRANCH_IDENTITIES.md")
+          checked("git", "commit", "-m", "docs: preserve mixed native Windows branch identity results")
+          final = git("rev-parse", "HEAD")
+          assert sorted(git("diff", "--name-only", BASE, final).splitlines()) == ["docs/WINDOWS_BRANCH_IDENTITIES.md", "ts_branching_diff.go", "ts_branching_identity_test.go"]
+          for path in ("ts_branching_diff.go", "ts_branching_identity_test.go", "docs/WINDOWS_BRANCH_IDENTITIES.md"):
+              (evidence / pathlib.Path(path).name).write_bytes(pathlib.Path(path).read_bytes())
+          (evidence / "provenance.json").write_text(json.dumps(provenance, indent=2))
+          checked("git", "push", "origin", final + ":refs/heads/" + TARGET)
+          print(json.dumps({"published_candidate": final, "branch": TARGET, "source_commit": product, "production_blob": provenance["production_blob"], "regression_blob": provenance["regression_blob"]}), flush=True)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-branch-identity-evidence
+          path: ${{ runner.temp }}/branch-identity-evidence
+          retention-days: 14
+          if-no-files-found: error
