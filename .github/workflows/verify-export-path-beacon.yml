@@ -1,0 +1,93 @@
+name: Native Windows export path guard
+'on':
+  push:
+    branches: [validation/chronicle104-export-path-beacon-8447]
+    paths: [.github/workflows/verify-export-path-beacon.yml]
+permissions:
+  contents: read
+concurrency:
+  group: chronicle104-export-path-beacon-8447
+  cancel-in-progress: false
+jobs:
+  native-windows:
+    if: github.repository == 'woahwhattheheck/chronicle'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: python
+    env:
+      CGO_ENABLED: '0'
+      GOMAXPROCS: '2'
+      PYTHONIOENCODING: utf-8
+      BASE_SHA: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+        persist-credentials: false
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+    - name: Run the actual Windows guard before and after its repair
+      run: |
+        import hashlib, json, os, platform, subprocess, sys, time
+        from pathlib import Path
+        assert sys.platform == 'win32'
+        evidence = Path('evidence')
+        evidence.mkdir()
+        base = os.environ['BASE_SHA']
+        candidate_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        assert subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip() == base
+        source_file = Path('export.go')
+        candidate = source_file.read_bytes()
+        baseline = subprocess.check_output(['git', 'show', base + ':export.go'])
+        def blob(data):
+            return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+        assert blob(baseline) == 'dc9171b5667f245ecc636e5fc3ed849a1909a372'
+        names = ['TestValidateExportPath', 'TestExporter_SensitivePathRejection', 'TestExporter_CSV', 'TestValidateExportPathWindows']
+        command = ['go', 'test', '-short', '-count=1', '-p=2', '-timeout=120s', '-json', '-run', '^(' + '|'.join(names) + ')$', '.']
+        info = {'baseline_commit': base, 'candidate_commit': candidate_commit, 'baseline_export_blob': blob(baseline), 'candidate_export_blob': blob(candidate), 'existing_test_blob': blob(Path('export_test.go').read_bytes()), 'windows_test_blob': blob(Path('export_path_windows_test.go').read_bytes()), 'platform': platform.platform(), 'python': sys.version, 'go': subprocess.check_output(['go', 'version'], text=True).strip(), 'command': command, 'selected_tests': names}
+        (evidence / 'provenance.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
+        def execute(label):
+            started = time.perf_counter()
+            with (evidence / (label + '.jsonl')).open('w', encoding='utf-8') as out, (evidence / (label + '.stderr')).open('w', encoding='utf-8') as err:
+                result = subprocess.run(command, stdout=out, stderr=err, timeout=600)
+            lines = (evidence / (label + '.jsonl')).read_text(encoding='utf-8').splitlines()
+            events = [json.loads(line) for line in lines if line.strip()]
+            print(label, 'exit', result.returncode, flush=True)
+            print('\n'.join(lines[-50:]), flush=True)
+            print((evidence / (label + '.stderr')).read_text(encoding='utf-8'), flush=True)
+            summary = {'exit_code': result.returncode, 'wall_seconds': time.perf_counter() - started, 'passed': sorted(e['Test'] for e in events if e.get('Action') == 'pass' and 'Test' in e), 'failed': sorted(e['Test'] for e in events if e.get('Action') == 'fail' and 'Test' in e), 'skipped': sorted(e['Test'] for e in events if e.get('Action') == 'skip' and 'Test' in e)}
+            info[label] = summary
+            (evidence / 'summary.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
+            return result.returncode, events, summary
+        try:
+            source_file.write_bytes(baseline)
+            before_exit, before_events, before = execute('before')
+        finally:
+            source_file.write_bytes(candidate)
+        assert before_exit == 1 and {'TestValidateExportPath', 'TestExporter_SensitivePathRejection'}.issubset(before['failed']), 'Baseline did not reproduce the retained export guard failures'
+        assert 'TestExporter_CSV' in before['passed'], 'Baseline allowed export control failed'
+        formatting = subprocess.check_output(['gofmt', '-l', 'export.go', 'export_path_windows_test.go'], text=True)
+        assert not formatting.strip(), 'Unexpected gofmt delta: ' + formatting
+        after_exit, after_events, after = execute('after')
+        assert after_exit == 0 and not after['failed'] and not after['skipped']
+        assert set(names).issubset(after['passed']), 'A selected top-level test did not run'
+        assert any(e.get('Action') == 'pass' and 'Test' not in e for e in after_events)
+        assert source_file.read_bytes() == candidate
+        assert not subprocess.check_output(['git', 'diff', '--name-only'], text=True).strip(), 'Runner changed tracked candidate source'
+        info['scope'] = 'Native Windows execution of the existing export guard, sensitive-path exporter rejection and successful CSV export, plus Windows path boundary regressions. No full suite, upstream CI acceptance, timing speedup or award is asserted.'
+        (evidence / 'summary.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
+        print(json.dumps(info, indent=2), flush=True)
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:
+            out.write('The retained export guard failures reproduced, then the same focused selection passed on native Windows. Candidate: `' + candidate_commit + '`. Original contribution branch is unchanged.\n')
+    - name: Retain scoped native evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: chronicle104-export-path-beacon
+        path: evidence/
+        retention-days: 14
+        if-no-files-found: error
