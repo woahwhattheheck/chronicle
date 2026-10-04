@@ -183,6 +183,10 @@ type HTTPConfig struct {
 	// Default: 8086.
 	HTTPPort int
 
+	// HTTPBindAddress is the host or IP address for the HTTP API listener, without a port.
+	// Empty defaults to 127.0.0.1. Set explicitly to expose the API on another interface.
+	HTTPBindAddress string
+
 	// PrometheusRemoteWriteEnabled enables the Prometheus remote write endpoint.
 	// Default: false.
 	PrometheusRemoteWriteEnabled bool

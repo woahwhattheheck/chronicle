@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "purpose": "Extracted real Kubernetes Service acceptance evidence; not a new execution or performance benchmark",
+  "run_url": "https://github.com/woahwhattheheck/chronicle/actions/runs/37192145883",
+  "job_id": 111406413299,
+  "artifact": {
+    "id": 11299512306,
+    "name": "chronicle105-kubernetes-37192145883",
+    "size_bytes": 46655,
+    "sha256": "69a84fcb48dd0e3cb32dcf625e7d6815c7ac6e4710e579277b7e0689e6e79a31",
+    "expires_at": "2026-10-18T09:29:37Z"
+  },
+  "kind_version": "kind v0.24.0 go1.22.6 linux/amd64",
+  "kubectl_version": {
+    "clientVersion": {
+      "major": "1",
+      "minor": "31",
+      "gitVersion": "v1.31.0",
+      "gitCommit": "9edcffcde5595e8a5b1a35f88c421764e575afce",
+      "gitTreeState": "clean",
+      "buildDate": "2024-08-13T07:37:34Z",
+      "goVersion": "go1.22.5",
+      "compiler": "gc",
+      "platform": "linux/amd64"
+    },
+    "kustomizeVersion": "v5.4.2"
+  },
+  "stages": {
+    "baseline": {
+      "source_commit": "87d28f7ee80960f0d70e29e2bb73e47048771771",
+      "source_tree": "6e731c6135f17ae5379803b138988e284bc8325a",
+      "image": {
+        "Id": "sha256:913f56c6653039b885976dbb2ec20571f3adcb2ce9384e5631d80dd876fa970f",
+        "Size": 23138764
+      },
+      "image_user": "65532",
+      "build_seconds": 32,
+      "rollout_seconds": 21,
+      "stats": {
+        "scrape_count": 2,
+        "scrape_errors": 0,
+        "points_collected": 8,
+        "points_written": 8,
+        "last_scrape_time": "2026-10-04T09:28:55.629499588Z",
+        "last_scrape_duration": 414864,
+        "target_count": 1,
+        "storage_bytes": 0
+      },
+      "query": {
+        "points": [
+          {
+            "Metric": "demo_up",
+            "Tags": {
+              "namespace": "chronicle105-baseline",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "5bdb6f5bbd"
+            },
+            "Value": 1,
+            "Timestamp": 1791106120629737475
+          },
+          {
+            "Metric": "demo_up",
+            "Tags": {
+              "namespace": "chronicle105-baseline",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "5bdb6f5bbd"
+            },
+            "Value": 1,
+            "Timestamp": 1791106135629359266
+          }
+        ]
+      },
+      "requests_query": {
+        "points": [
+          {
+            "Metric": "demo_requests_total",
+            "Tags": {
+              "method": "GET",
+              "namespace": "chronicle105-baseline",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "5bdb6f5bbd",
+              "status": "200"
+            },
+            "Value": 5,
+            "Timestamp": 1791106120629737475
+          },
+          {
+            "Metric": "demo_requests_total",
+            "Tags": {
+              "method": "GET",
+              "namespace": "chronicle105-baseline",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "5bdb6f5bbd",
+              "status": "200"
+            },
+            "Value": 9,
+            "Timestamp": 1791106135629359266
+          }
+        ]
+      },
+      "ready": {
+        "status": "ready"
+      },
+      "expected_tags": {
+        "pod": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+        "namespace": "chronicle105-baseline",
+        "node": "chronicle105-control-plane",
+        "pod_label_app": "demo-app"
+      },
+      "observation": {
+        "seconds_after_rollout": 11.09256887699999,
+        "last_scrape_duration_ns": 414864
+      },
+      "service_result": {
+        "stage": "baseline",
+        "exit_code": 7,
+        "expectation_met": true
+      },
+      "service_client_output": "HEALTH_OK\ncurl: (7) Failed to connect to demo-app-chronicle port 8086 after 0 ms: Could not connect to server\n",
+      "pods": [
+        {
+          "name": "demo-app-with-chronicle-5bdb6f5bbd-7gl2p",
+          "namespace": "chronicle105-baseline",
+          "node": "chronicle105-control-plane",
+          "pod_ip": "10.244.0.5",
+          "security_context": {
+            "fsGroup": 65532,
+            "runAsGroup": 65532,
+            "runAsNonRoot": true,
+            "runAsUser": 65532
+          },
+          "containers": [
+            {
+              "name": "chronicle-sidecar",
+              "ready": true,
+              "restart_count": 0
+            },
+            {
+              "name": "demo-app",
+              "ready": true,
+              "restart_count": 0
+            }
+          ]
+        }
+      ]
+    },
+    "candidate": {
+      "source_commit": "7872469306a5da72a6e34b6c83eb4208516232fc",
+      "source_tree": "705079947de22bf826f912bcf0981b8839d04d40",
+      "image": {
+        "Id": "sha256:641d3ea4b6f9f4989a946ba453223581022af952016d6dc942b1c8bcf426d62f",
+        "Size": 23138764
+      },
+      "image_user": "65532",
+      "build_seconds": 33,
+      "rollout_seconds": 21,
+      "stats": {
+        "scrape_count": 2,
+        "scrape_errors": 0,
+        "points_collected": 8,
+        "points_written": 8,
+        "last_scrape_time": "2026-10-04T09:29:31.595786786Z",
+        "last_scrape_duration": 691486,
+        "target_count": 1,
+        "storage_bytes": 0
+      },
+      "query": {
+        "points": [
+          {
+            "Metric": "demo_up",
+            "Tags": {
+              "namespace": "chronicle105-candidate",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-79598c845-jg558",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "79598c845"
+            },
+            "Value": 1,
+            "Timestamp": 1791106156595819889
+          },
+          {
+            "Metric": "demo_up",
+            "Tags": {
+              "namespace": "chronicle105-candidate",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-79598c845-jg558",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "79598c845"
+            },
+            "Value": 1,
+            "Timestamp": 1791106171595565992
+          }
+        ]
+      },
+      "requests_query": {
+        "points": [
+          {
+            "Metric": "demo_requests_total",
+            "Tags": {
+              "method": "GET",
+              "namespace": "chronicle105-candidate",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-79598c845-jg558",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "79598c845",
+              "status": "200"
+            },
+            "Value": 5,
+            "Timestamp": 1791106156595819889
+          },
+          {
+            "Metric": "demo_requests_total",
+            "Tags": {
+              "method": "GET",
+              "namespace": "chronicle105-candidate",
+              "node": "chronicle105-control-plane",
+              "pod": "demo-app-with-chronicle-79598c845-jg558",
+              "pod_label_app": "demo-app",
+              "pod_label_pod-template-hash": "79598c845",
+              "status": "200"
+            },
+            "Value": 9,
+            "Timestamp": 1791106171595565992
+          }
+        ]
+      },
+      "ready": {
+        "status": "ready"
+      },
+      "expected_tags": {
+        "pod": "demo-app-with-chronicle-79598c845-jg558",
+        "namespace": "chronicle105-candidate",
+        "node": "chronicle105-control-plane",
+        "pod_label_app": "demo-app"
+      },
+      "observation": {
+        "seconds_after_rollout": 11.090363369999977,
+        "last_scrape_duration_ns": 691486
+      },
+      "service_result": {
+        "stage": "candidate",
+        "exit_code": 0,
+        "expectation_met": true
+      },
+      "service_client_output": "HEALTH_OK\n{\"points\":[{\"Metric\":\"demo_up\",\"Tags\":{\"namespace\":\"chronicle105-candidate\",\"node\":\"chronicle105-control-plane\",\"pod\":\"demo-app-with-chronicle-79598c845-jg558\",\"pod_label_app\":\"demo-app\",\"pod_label_pod-template-hash\":\"79598c845\"},\"Value\":1,\"Timestamp\":1791106156595819889},{\"Metric\":\"demo_up\",\"Tags\":{\"namespace\":\"chronicle105-candidate\",\"node\":\"chronicle105-control-plane\",\"pod\":\"demo-app-with-chronicle-79598c845-jg558\",\"pod_label_app\":\"demo-app\",\"pod_label_pod-template-hash\":\"79598c845\"},\"Value\":1,\"Timestamp\":1791106171595565992}]}\n",
+      "pods": [
+        {
+          "name": "demo-app-with-chronicle-79598c845-jg558",
+          "namespace": "chronicle105-candidate",
+          "node": "chronicle105-control-plane",
+          "pod_ip": "10.244.0.7",
+          "security_context": {
+            "fsGroup": 65532,
+            "runAsGroup": 65532,
+            "runAsNonRoot": true,
+            "runAsUser": 65532
+          },
+          "containers": [
+            {
+              "name": "chronicle-sidecar",
+              "ready": true,
+              "restart_count": 0
+            },
+            {
+              "name": "demo-app",
+              "ready": true,
+              "restart_count": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cleanup_output": "Deleting cluster \"chronicle105\" ...\nDeleted nodes: [\"chronicle105-control-plane\"]\n",
+  "gofmt_diff": "",
+  "source_file_sha256": {
+    "baseline/expected-tags.json": "6cf7cb5860d21333b4266655a93beecff1f1d764e73ef66b8a7fb67fbe1a01a3",
+    "baseline/manifests/configmap.yaml": "2658509622a8ffbab29fbda990cb92adda22e80b18ce7c4cb9d944b64de1b4f9",
+    "baseline/manifests/deployment.yaml": "361e56b418ffc085afce4d4a0948a87124e39b0ea6e269ede273963b3d77cb4a",
+    "baseline/manifests/service.yaml": "dcdff862bac89e752a7feec4d4542074255dd5ad383511cb38b22f3b7ec9c126",
+    "baseline/observation.json": "12b16678189f9375295f353ceb3b6bc05d924b4672fe02fac24e2df40e9dca5b",
+    "baseline/pods.json": "fc420a0bc8baad5eef32d9cf8a6d6bbd639b519662caa5883c8ed38ad071b9e6",
+    "baseline/port-forward.log": "87e79fb681880f98fbdeecfbe7999ef8b48bee019f1f9d94565f982b1732eb67",
+    "baseline/query.json": "1db85505b7ae2f1c81ffb3f8ebd298625710660266747488f9ae2e4e186b2f80",
+    "baseline/ready.json": "9994e13386b29bde4071dd062d8c4ab8dbb6b4b877f968b4a34fb2c7b0ead65e",
+    "baseline/requests-query.json": "4c77da372713fa82fa94da2406c6d1c16b50e8845ae5bc2c7bbe7ee984354457",
+    "baseline/rollout-seconds.txt": "6e2ae11dad0616f66bbb2b6e6556f580bb987fd911d7132aa6bee2bfc7cc7b52",
+    "baseline/rollout.log": "ba0a03bc6e1cfc201144b25177134212bce2e0590029d851985d2478ef8559c4",
+    "baseline/service-query-pod.json": "582ce04fcf3bb074ee2caa0d42fb01f1d673d0d4fcb33a1c3b97cfde763f8d2a",
+    "baseline/service-query.log": "34c2c2ceac27b5f1c14468f901548454e7446eb7f545ac3bef59d8009cef3279",
+    "baseline/service-result.json": "0ecf175f9c98c4b20d32151a421eaa88da15a8ffb65b9a83b4535fb48e497f22",
+    "baseline/stats.json": "56df3186dfd42088fe7d93e2f289c66712ef4fab7dcd76d18a1e15a532ca0203",
+    "baseline-build-seconds.txt": "2115cdb6bfcfb008eb2bab2bb79347cb064a48e4e7c4115ccbe4469c787bb6c4",
+    "baseline-build.log": "358dbddbcf2eceaf6611aa2e4a75ec1dbaa1aa75b6e59bdcfcc16f478def0886",
+    "baseline-container.log": "74895433843a943a1dd70488a0bfc93104f8ec9cc468b05ff19cf8128589d1e8",
+    "baseline-events.json": "3b064e8f736deeaa7cd85480b0c162d3c5e8dc9698767a7cfe04be928a969a99",
+    "baseline-image.json": "f2fd3c45890e1d74838e29d8e8601bc9c477b481db36f8a043804f69ebd5c904",
+    "baseline-resources.yaml": "6e8d1c17bf99c073a1c94e7cf83d950583b44c5c4cff7ab7da1a6add8700a954",
+    "baseline-source.txt": "8d929ece85e0684b6362ecade2104b70334a8551c1e3e175f14c65fa7f53b10e",
+    "candidate/expected-tags.json": "c619f8489356a748fe675255c7920ec825e8edaad54aa389541003ab303e92af",
+    "candidate/manifests/configmap.yaml": "2658509622a8ffbab29fbda990cb92adda22e80b18ce7c4cb9d944b64de1b4f9",
+    "candidate/manifests/deployment.yaml": "b625e7b866435e39e17aac880d88ca55090f06de7583fb81fdf5d08e4e50a606",
+    "candidate/manifests/service.yaml": "dcdff862bac89e752a7feec4d4542074255dd5ad383511cb38b22f3b7ec9c126",
+    "candidate/observation.json": "714b41be9f7b91e2a2f27daf6af409c4b0f81cacb1d3592cce8d9b02040be12f",
+    "candidate/pods.json": "17eba21a211789992ef67267da26a24470b339edf2440e6f3b6755df9e386d1a",
+    "candidate/port-forward.log": "87e79fb681880f98fbdeecfbe7999ef8b48bee019f1f9d94565f982b1732eb67",
+    "candidate/query.json": "4addef869176cc8e545a3a076aa087651747d9a344d77c79cab1c6e7ac1bf8db",
+    "candidate/ready.json": "9994e13386b29bde4071dd062d8c4ab8dbb6b4b877f968b4a34fb2c7b0ead65e",
+    "candidate/requests-query.json": "2c6e36bcef2fcc7b3344d88f175097d8e860433beb34b6678eaa8729cfa6352a",
+    "candidate/rollout-seconds.txt": "6e2ae11dad0616f66bbb2b6e6556f580bb987fd911d7132aa6bee2bfc7cc7b52",
+    "candidate/rollout.log": "ba0a03bc6e1cfc201144b25177134212bce2e0590029d851985d2478ef8559c4",
+    "candidate/service-query-pod.json": "f9941866612f37742f67f4c0392448ce5720265bf9be442920fb0b8fdb55f7cf",
+    "candidate/service-query.log": "387e61e66b7797a24948804ed75edf3ca6b95055a1266efd0eab45017affd470",
+    "candidate/service-result.json": "6cd36f8b1e4b672cbdb6f60f8fbc0e30fbdf70dc8d14c8d2a2b56ad5bd2439e1",
+    "candidate/stats.json": "3a438a6ea74dac8614a0ff716276175b32898545f9146f52eea294ac86836331",
+    "candidate-build-seconds.txt": "19b8d5c59e421f037fe563007c7254eb8d98bc221b278c3db3e5fdbbfd52e273",
+    "candidate-build.log": "ca850beb528cb0f5eff525b4e9d7a8a66ac6e4c4451d165fa132fca2c742fa44",
+    "candidate-container.log": "e8a269b4928ea101a40c589660fc35154c700c98a76baa2222befb6a725dbe5e",
+    "candidate-events.json": "2137649319ecee05645744b543c41415207a78a493811631b7be8a81032e1722",
+    "candidate-image.json": "b089223955d7801f1c73276d3a68516f6c67d41df41071addf47a7c45a4df33a",
+    "candidate-resources.yaml": "cf0d41d17c309ff81c251cedfa016492d514693d62980fae11c715e1a9cd5eb9",
+    "candidate-source.txt": "604c13bcf06496d5d4dfae3b6e0d1744480e6b11a0309f7589a1fe918cdac0d6",
+    "candidate.patch": "3d7f3ee0c8d53be0eede0a7a43c4659add39155e9f4af941a49a9847a938a6a8",
+    "cleanup.log": "9c6d3de7667218de065d75cb3bbf87563eb7018787ac1ed3e056712fd343aa5d",
+    "cluster-create.log": "c4f1649b33fac2f8c24f1eabf7769c242a1c623d03f6c0b5e42cb6c03176d655",
+    "docker-version.txt": "58d5180149fd3334dbb3ff73de521946336e4052a1b769cb475f72486c934b1b",
+    "gofmt.diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "kind-checksum.txt": "d6bb841649aaa97c27625b8fcc0a75fd7873933dbb61c0ec4b1e135b1575885c",
+    "kind-version.txt": "4da7ef9e9cb881a8f45b04d61b0be3c6e5e8c8b7e05ffda7918c5736a66e0ed3",
+    "kubectl-checksum.txt": "b57f63dd71c734e97322e6bfc94329c4f9fd61b0ed15c757d71ba72e697014fa",
+    "kubectl-version.json": "363be8fd556ce6310cd58f54148208349eedee477df64b74a28c8736485bf154",
+    "nodes.json": "76c5e49bdce8f7b307a61296d4307a7f80405044eaca6624db218ae550d38bb6"
+  }
+}
