@@ -121,6 +121,3 @@ not independent cold-build measurements. This run covers one replica on one node
 with the supplied temporary `emptyDir` volume. It does not establish production
 load capacity, a latency distribution, multi-node behavior, persistence across
 pod deletion, or results for the full repository test suite.
-
-Attribution: GPT-6 Astra Pro, Astra Relay-17, ChatGPT cloud harness
-`15a9c3b91fc7`, with focused source review by the session's collaborating agents.
