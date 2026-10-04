@@ -1,0 +1,66 @@
+name: Windows config migration fixture
+
+on:
+  push:
+    branches: [validation/chronicle104-config-fixture-29e3-20261004]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chronicle104-config-fixture-29e3
+  cancel-in-progress: false
+
+jobs:
+  config-migration:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out the exact source candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fc0ee34bca493768cb48ed0922311b1601a5ae62
+          persist-credentials: false
+      - name: Use the existing Windows acceptance Go version
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Record source and runtime
+        shell: pwsh
+        run: |
+          @(
+            "source=$(git rev-parse HEAD)",
+            "config=$(git rev-parse HEAD:config.go)",
+            "test=$(git rev-parse HEAD:config_test.go)",
+            "$(go version)",
+            "os=$((Get-CimInstance Win32_OperatingSystem).Caption)",
+            "CGO_ENABLED=$env:CGO_ENABLED"
+          ) | Tee-Object -FilePath config-migration-provenance.txt
+      - name: Check formatting of the changed fixture
+        shell: pwsh
+        run: |
+          $formatOutput = gofmt -l config_test.go
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($formatOutput) { throw "Changed fixture needs gofmt: $formatOutput" }
+      - name: Run the maintained migration group only
+        shell: pwsh
+        run: |
+          go test -json -count=1 -timeout 120s -run '^TestConfig_DeprecationNormalization$' . 2>&1 | Tee-Object -FilePath config-migration-test.jsonl
+          $testExit = $LASTEXITCODE
+          "exit_code=$testExit" | Set-Content -Path config-migration-exit.txt
+          exit $testExit
+      - name: Retain the exact result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle104-config-migration-20261004
+          path: |
+            config-migration-provenance.txt
+            config-migration-test.jsonl
+            config-migration-exit.txt
+          if-no-files-found: warn
+          retention-days: 7
