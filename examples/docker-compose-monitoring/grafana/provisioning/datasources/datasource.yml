@@ -2,14 +2,17 @@ apiVersion: 1
 
 datasources:
   - name: Chronicle
+    uid: Chronicle
     type: prometheus
     access: proxy
     url: http://chronicle:8086
     isDefault: false
     editable: false
     jsonData:
-      httpMethod: POST
-      timeInterval: "15s"
+      # Chronicle supports read-only GET queries. Form POST requires an
+      # additional CSRF header that Grafana does not send by default.
+      httpMethod: GET
+      timeInterval: "5s"
 
   - name: Prometheus
     uid: Prometheus

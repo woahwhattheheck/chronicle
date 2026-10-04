@@ -3,7 +3,9 @@
   "uid": "chronicle-compose-overview",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
+  "refresh": "5s",
+  "time": {"from": "now-15m", "to": "now"},
   "panels": [
     {
       "type": "timeseries",
@@ -22,6 +24,21 @@
         {"expr": "rate(prometheus_tsdb_head_samples_appended_total[1m])", "legendFormat": "samples/s", "refId": "A"}
       ],
       "datasource": {"type": "prometheus", "uid": "Prometheus"}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Stored demo CPU (Chronicle)",
+      "description": "Sample values written by metric-gen and queried from Chronicle, not from Prometheus scrape telemetry.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "fieldConfig": {
+        "defaults": {"unit": "percent", "min": 0, "max": 100},
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "demo_cpu_percent{host=\"compose\",env=\"dev\"}", "legendFormat": "{{host}}", "refId": "A", "range": true, "instant": false}
+      ],
+      "datasource": {"type": "prometheus", "uid": "Chronicle"}
     }
   ]
 }
