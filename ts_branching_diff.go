@@ -443,12 +443,16 @@ func (bm *TSBranchManager) cleanupDeletedBranches() {
 
 // Helper functions
 
+// Branch and commit registries are process-local. A sequence keeps their keys
+// distinct when concurrent operations observe the same or a rolled-back clock.
+var tsBranchIdentitySequence uint64
+
 func generateBranchID() string {
-	return fmt.Sprintf("br_%d", time.Now().UnixNano())
+	return fmt.Sprintf("br_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&tsBranchIdentitySequence, 1))
 }
 
 func generateCommitID() string {
-	return fmt.Sprintf("cm_%d", time.Now().UnixNano())
+	return fmt.Sprintf("cm_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&tsBranchIdentitySequence, 1))
 }
 
 func computeCommitHash(commit *BranchCommit) string {
