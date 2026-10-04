@@ -29,6 +29,7 @@ jobs:
         shell: python
         run: |
           import base64, json, math, os, time
+          from http.client import HTTPException
           from pathlib import Path
           from urllib.error import HTTPError, URLError
           from urllib.request import Request, urlopen
@@ -47,7 +48,7 @@ jobs:
                       result = function()
                       if result:
                           return result
-                  except (HTTPError, URLError, TimeoutError, ValueError, KeyError) as exc:
+                  except (HTTPError, URLError, OSError, HTTPException, ValueError, KeyError) as exc:
                       last = str(exc)
                   time.sleep(2)
               raise RuntimeError(label + ': ' + str(last))
