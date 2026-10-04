@@ -81,3 +81,61 @@ startup-test addition, example changes, and label-regexp reuse through
 `fa7800904fcfa45f1da08ffcf30dbb5933088628` were not the checkout used by this run.
 The later `k8s_sidecar_startup_test.go` remains the branch's regression coverage;
 the temporary validation fixture need not be added to the branch.
+
+## Prometheus parsing and throughput (2026-10-04)
+
+Commit `bd05cac196e8d6fd39fb473d84c933003902ee95` preserves quoted braces,
+escaped quotes/backslashes/newlines, UTF-8 label values, and tab-separated
+samples. On parent `584818a0609718005e2de36384bd723d5d4df153`, the actual parser
+failed 11 of the 13 valid-label cases and the malformed-line recovery case.
+All 14 pass after the repair in
+[run 37190090089](https://github.com/woahwhattheheck/chronicle/actions/runs/37190090089),
+job `111400272397`. This first correctness change increased the same-run
+plain-label benchmark median from 126,030 to 134,558 ns per 100 samples,
+with 1,209 allocations unchanged. Those measurements used an Intel Xeon
+6973P-C and are separate from the following numeric-conversion comparison.
+
+Commit `354a543814752ba8fc59e9ef8230443f9e3836bb` replaces both numeric
+`fmt.Sscanf` calls with `strconv.ParseFloat`. Invalid values such as
+`7garbage` and `1.2.3` no longer silently become their numeric prefixes.
+The actual root package compiled and all 40 focused cases passed: 13 valid
+label cases, one recovery/target-label-precedence case, 18 numeric cases,
+and eight invalid-value cases. Numeric checks include signed zero, scientific
+notation, infinities, and NaN. The label repairs remain included.
+
+[Run 37190380248](https://github.com/woahwhattheheck/chronicle/actions/runs/37190380248)
+compared the quote-corrected parent `bd05cac196e8d6fd39fb473d84c933003902ee95`
+with this numeric follow-through on the same AMD EPYC 9V74 runner, using
+Go 1.24.4, `GOMAXPROCS=2`, and `GOFLAGS=-p=2`. Three 100 ms repetitions of the
+identical 100-sample plain-label workload produced these medians:
+
+| Per 100 samples | Quote-corrected parent | Numeric follow-through |
+| --- | ---: | ---: |
+| Time | 139,142 ns | 104,206 ns |
+| Allocations | 1,209 | 909 |
+| Allocated bytes | 108,471 | 97,238 |
+
+That is 25.1% less parser time and 24.8% fewer allocations for this workload.
+It is not an end-to-end ingestion, Kubernetes, or fleet throughput result.
+The two separate runners' timings must not be combined into a same-machine
+comparison against the original uncorrected version.
+
+The executed final source blob is `5e134dfe3d72294c384bf0d80cc213b5eb5b62e0`;
+the numeric test blob is `19ac80741c03b026a8d6302bba04ac908ed3de39`.
+The [ten-file evidence archive](https://github.com/woahwhattheheck/chronicle/actions/runs/37190380248/artifacts/11298916242)
+contains the pinned source identities, before/after logs and raw benchmark
+repetitions, patch, and executed source/test files. Its downloaded ZIP SHA-256 is
+`337e9982092304cc5a4a92533cba262e374cb4ee28a1e3cc187dc44b7fbee119`.
+
+To repeat on the final source commit from the repository root:
+
+```sh
+go test -v -run '^TestK8sSidecarPrometheus' -count=1 -timeout=60s .
+go test -run '^$' -bench '^BenchmarkK8sSidecarPrometheusPlainLabels$' \
+  -benchmem -benchtime=100ms -count=3 -timeout=60s .
+```
+
+No dependencies or earlier health/example implementations changed in these
+parser commits. These runs did not repeat the full repository suite,
+race detection, storage ingestion, or Kubernetes deployment. The temporary
+runner workflows are not part of the product branch.
