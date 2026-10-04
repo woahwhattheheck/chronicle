@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -468,10 +469,11 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 		rest := strings.TrimSpace(line[closeBraceIdx+1:])
 		parts := strings.Fields(rest)
 		if len(parts) >= 1 {
-			_, err := fmt.Sscanf(parts[0], "%f", &point.Value)
+			value, err := strconv.ParseFloat(parts[0], 64)
 			if err != nil {
 				return point, err
 			}
+			point.Value = value
 		}
 	} else if spaceIdx != -1 {
 		// No labels
@@ -479,10 +481,11 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 		rest := line[spaceIdx+1:]
 		parts := strings.Fields(rest)
 		if len(parts) >= 1 {
-			_, err := fmt.Sscanf(parts[0], "%f", &point.Value)
+			value, err := strconv.ParseFloat(parts[0], 64)
 			if err != nil {
 				return point, err
 			}
+			point.Value = value
 		}
 	} else {
 		return point, errors.New("invalid metric line")
