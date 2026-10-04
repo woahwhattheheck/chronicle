@@ -67,7 +67,9 @@ services:
         while true; do
           i=$$((i+1))
           val=$$((20 + i % 15))
-          wget -qO- --post-data="demo_cpu_percent,host=compose,env=dev value=$$val" \
+          wget -qO- --header='X-Requested-With: XMLHttpRequest' \
+            --header='Content-Type: text/plain' \
+            --post-data="demo_cpu_percent,host=compose,env=dev value=$$val" \
             http://chronicle:8086/write || true
           sleep 5
         done
