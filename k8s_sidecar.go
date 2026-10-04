@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -193,6 +194,7 @@ func (s *K8sSidecar) Start() error {
 
 	// Start health server
 	if err := s.startHealthServer(); err != nil {
+		s.running.Store(false)
 		return err
 	}
 
@@ -241,7 +243,12 @@ func (s *K8sSidecar) startHealthServer() error {
 		Handler: mux,
 	}
 
-	go s.server.ListenAndServe()
+	listener, err := net.Listen("tcp", s.server.Addr)
+	if err != nil {
+		return fmt.Errorf("listen for sidecar health: %w", err)
+	}
+
+	go s.server.Serve(listener)
 	return nil
 }
 
