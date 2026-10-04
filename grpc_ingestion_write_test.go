@@ -292,3 +292,103 @@ func TestGRPCEncodeDecodeWriteRequest(t *testing.T) {
 		t.Errorf("Expected 1 time series, got %d", len(decoded.TimeSeries))
 	}
 }
+
+func TestGRPCHandleQueryAggregateBuckets(t *testing.T) {
+	g := newTestGRPCEngine(t)
+	ctx := context.Background()
+	base := time.Now().Truncate(time.Second).Add(-time.Minute)
+	at := func(offset time.Duration) int64 { return base.Add(offset).UnixNano() }
+
+	// Two complete one-second buckets, plus rows excluded by the requested
+	// labels and exclusive end bound.
+	req := &WriteRequest{TimeSeries: []ProtoTimeSeries{
+		{
+			Labels: []ProtoLabel{
+				{Name: "__name__", Value: "grpc_bucket_test"},
+				{Name: "host", Value: "selected"},
+			},
+			Samples: []ProtoSample{
+				{Value: 10, Timestamp: at(100 * time.Millisecond)},
+				{Value: 30, Timestamp: at(900 * time.Millisecond)},
+				{Value: 50, Timestamp: at(time.Second)},
+				{Value: 70, Timestamp: at(1500 * time.Millisecond)},
+				{Value: 999, Timestamp: at(2 * time.Second)},
+			},
+		},
+		{
+			Labels: []ProtoLabel{
+				{Name: "__name__", Value: "grpc_bucket_test"},
+				{Name: "host", Value: "other"},
+			},
+			Samples: []ProtoSample{{Value: 999, Timestamp: at(100 * time.Millisecond)}},
+		},
+	}}
+	if err := g.HandleWrite(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.db.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	buckets := []int64{at(0), at(time.Second)}
+	for _, tc := range []struct {
+		name       string
+		aggregate  string
+		limit      int
+		timestamps []int64
+		values     []float64
+	}{
+		{name: "sum", aggregate: "sum", timestamps: buckets, values: []float64{40, 120}},
+		{name: "avg", aggregate: "avg", timestamps: buckets, values: []float64{20, 60}},
+		{name: "mean", aggregate: "mean", timestamps: buckets, values: []float64{20, 60}},
+		{name: "min", aggregate: "min", timestamps: buckets, values: []float64{10, 50}},
+		{name: "max", aggregate: "max", timestamps: buckets, values: []float64{30, 70}},
+		{name: "count", aggregate: "count", timestamps: buckets, values: []float64{2, 2}},
+		{name: "rate", aggregate: "rate", timestamps: buckets, values: []float64{25, 40}},
+		{name: "limit", aggregate: "sum", limit: 1, timestamps: buckets[:1], values: []float64{40}},
+		{
+			name: "raw",
+			timestamps: []int64{at(100 * time.Millisecond), at(900 * time.Millisecond),
+				at(time.Second), at(1500 * time.Millisecond)},
+			values: []float64{10, 30, 50, 70},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := g.HandleQuery(ctx, &QueryRequest{
+				Metric: "grpc_bucket_test", Labels: map[string]string{"host": "selected"},
+				StartTime: at(0), EndTime: at(2 * time.Second),
+				Aggregate: tc.aggregate, Limit: tc.limit,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp == nil || len(resp.Series) != 1 || resp.PointCount != len(tc.values) {
+				t.Fatalf("unexpected query response: %+v", resp)
+			}
+			samples := resp.Series[0].Samples
+			if len(samples) != len(tc.values) {
+				t.Fatalf("got %d samples, want %d", len(samples), len(tc.values))
+			}
+			for i, sample := range samples {
+				if sample.Timestamp != tc.timestamps[i] || sample.Value != tc.values[i] {
+					t.Errorf("sample %d = %+v, want timestamp %d, value %v",
+						i, sample, tc.timestamps[i], tc.values[i])
+				}
+			}
+		})
+	}
+
+	t.Run("unsupported", func(t *testing.T) {
+		before := g.Stats()
+		resp, err := g.HandleQuery(ctx, &QueryRequest{
+			Metric: "grpc_bucket_test", Aggregate: "median",
+		})
+		if err == nil || resp != nil {
+			t.Fatalf("unsupported reducer returned response %v, error %v", resp, err)
+		}
+		after := g.Stats()
+		if after.TotalErrors != before.TotalErrors+1 || after.TotalQueryRequests != before.TotalQueryRequests {
+			t.Fatalf("unsupported reducer changed counters incorrectly: before=%+v after=%+v", before, after)
+		}
+	})
+}

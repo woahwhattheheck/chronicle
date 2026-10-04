@@ -1,0 +1,871 @@
+{
+  "schema_version": 1,
+  "title": "Chronicle PR104 Windows gRPC aggregation and overlapping partition acceptance continuation",
+  "attribution": {
+    "model": "GPT-6 Astra Pro",
+    "identity": "Relay-17 BountyHub delivery",
+    "harness": "ChatGPT cloud",
+    "workspace": "15a9c3b91fc7"
+  },
+  "original_pull_request": "https://github.com/josedab/chronicle/pull/104",
+  "original_branch": "woahwhattheheck/chronicle:bounty-9-windows-testing",
+  "issue": "https://github.com/josedab/chronicle/issues/54",
+  "claim": "CHRONICLE104-GRPC-AGGREGATION-WINDOW-RELAY17",
+  "acceptance_scope": "Two observed product defects: omitted positive aggregation window and omission of partitions beginning before a bounded query start. Native Windows execution does not imply Windows-specific root causes.",
+  "publication_parent": "f47fac34f6de45d648b8c86f2cec6f00f88176c9",
+  "initial_comparison": {
+    "run_url": "https://github.com/woahwhattheheck/chronicle/actions/runs/37202462701",
+    "baseline_commit": "efb80aefe3af26183e765607ea013ca2d3ab2b1b",
+    "controller_commit": "788a714878302d1f93f6af16f13bdb03e3748e74",
+    "conclusion": "failure",
+    "records": [
+      {
+        "label": "baseline",
+        "exit_code": 1,
+        "wall_seconds": 73.37489008903503,
+        "command": [
+          "go",
+          "test",
+          "-short",
+          "-count=1",
+          "-timeout=90s",
+          "-run",
+          "^(TestGRPCIngestionEngine|TestGRPCHandleQuery(WithAggregation|AggregateBuckets|ReturnsResults|NilRequest))$",
+          "-json",
+          "."
+        ],
+        "tests": [
+          {
+            "Time": "2026-10-04T12:34:11.9404221Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/write_and_query",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9404221Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/nil_request",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9404221Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/empty_metric_skipped",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9404221Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/services_reflection",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9404221Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/interceptor",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9434029Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/query_with_aggregation",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9434029Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/config_defaults",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9582338Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:11.9796079Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryNilRequest",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0059835Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryReturnsResults",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0360038Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryWithAggregation",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0455449Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/sum",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0455449Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/avg",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0455449Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/mean",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0455449Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/min",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0455449Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/max",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0460969Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/count",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0460969Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/rate",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0460969Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/limit",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0460969Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/raw",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0460969Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/unsupported",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:12.0636396Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets",
+            "Elapsed": 0.03
+          }
+        ],
+        "passed_events": 9,
+        "failed_events": 13,
+        "skipped_events": 0,
+        "source_blobs": {
+          "grpc_ingestion.go": "ce7a61a3734742714bcb3a77764f0a88e8ff30ef",
+          "grpc_ingestion_write_test.go": "484c4ddcbd1a292d2ecb9e1c7d4de9a6bc051668",
+          "grpc_ingestion_test.go": "347ef9bb5578ed8f017f11bf2d62c701d950a8c2",
+          "internal/query/parser.go": "5edf129b9d1e4099e9772845ef3e1c7acf3c1c30"
+        },
+        "diff_stat": "grpc_ingestion_write_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++\n 1 file changed, 100 insertions(+)"
+      },
+      {
+        "label": "candidate",
+        "exit_code": 1,
+        "wall_seconds": 17.819847583770752,
+        "command": [
+          "go",
+          "test",
+          "-short",
+          "-count=1",
+          "-timeout=90s",
+          "-run",
+          "^(TestGRPCIngestionEngine|TestGRPCHandleQuery(WithAggregation|AggregateBuckets|ReturnsResults|NilRequest))$",
+          "-json",
+          "."
+        ],
+        "tests": [
+          {
+            "Time": "2026-10-04T12:34:30.2562344Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/write_and_query",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2562344Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/nil_request",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2567625Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/empty_metric_skipped",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2567625Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/services_reflection",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2567625Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/interceptor",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2594241Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/query_with_aggregation",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2594241Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/config_defaults",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2750903Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:30.2992315Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryNilRequest",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3285301Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryReturnsResults",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3567925Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryWithAggregation",
+            "Elapsed": 0.03
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3698833Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/sum",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3698833Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/avg",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3698833Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/mean",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/min",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/max",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/count",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/rate",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/limit",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/raw",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3703931Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/unsupported",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:34:30.3878885Z",
+            "Action": "fail",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets",
+            "Elapsed": 0.03
+          }
+        ],
+        "passed_events": 12,
+        "failed_events": 10,
+        "skipped_events": 0,
+        "source_blobs": {
+          "grpc_ingestion.go": "e78b4845364bc04c90c6993bdf6c42837aadd513",
+          "grpc_ingestion_write_test.go": "484c4ddcbd1a292d2ecb9e1c7d4de9a6bc051668",
+          "grpc_ingestion_test.go": "347ef9bb5578ed8f017f11bf2d62c701d950a8c2",
+          "internal/query/parser.go": "5edf129b9d1e4099e9772845ef3e1c7acf3c1c30"
+        },
+        "diff_stat": ""
+      }
+    ],
+    "artifact": [
+      {
+        "id": 11302983717,
+        "name": "chronicle104-grpc-relay17",
+        "size_in_bytes": 23821,
+        "github_reported_digest": "sha256:df2ae8afcafa616bbbd69128913dd69d2865aeb770984c3f471bcff8f0413de8",
+        "expires_at": "2026-10-18T12:34:31Z"
+      }
+    ],
+    "observed_failure_outputs": {
+      "baseline": [
+        {
+          "test": "TestGRPCIngestionEngine/query_with_aggregation",
+          "output": "    grpc_ingestion_test.go:156: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryWithAggregation",
+          "output": "    grpc_ingestion_write_test.go:231: HandleQuery with aggregation failed: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/sum",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/avg",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/mean",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/min",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/max",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/count",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/rate",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/limit",
+          "output": "    grpc_ingestion_write_test.go:363: execute query: aggregation window must be positive\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/raw",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        }
+      ],
+      "grpc_only_candidate": [
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/sum",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/avg",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/mean",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/min",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/max",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/count",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/rate",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/limit",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        },
+        {
+          "test": "TestGRPCHandleQueryAggregateBuckets/raw",
+          "output": "    grpc_ingestion_write_test.go:366: unexpected query response: &{Series:[{Metric:grpc_bucket_test Labels:map[host:selected] Samples:[]}] QueryTimeMs:0 PointCount:0}\n"
+        }
+      ]
+    }
+  },
+  "retained_artifact_inspection": {
+    "run_url": "https://github.com/woahwhattheheck/chronicle/actions/runs/37202749969",
+    "source_run_id": 37202462701,
+    "source_artifact_id": 11302983717,
+    "operation": "Downloaded the retained artifact and printed relevant failure messages; no tests or build were run."
+  },
+  "final": {
+    "run_url": "https://github.com/woahwhattheheck/chronicle/actions/runs/37203434883",
+    "job_id": 111439603913,
+    "conclusion": "success",
+    "summary": {
+      "provenance": {
+        "initial_baseline_commit": "efb80aefe3af26183e765607ea013ca2d3ab2b1b",
+        "initial_comparison_run": 37202462701,
+        "retained_failure_inspection_run": 37202749969,
+        "controller_commit": "183ceeb1f9e29d685882c24d755500e8d1b5d813",
+        "controller_tree": "ff416a085017654c313f3bf9e6c0b0e8aa257e69",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "go_environment": {
+          "CGO_ENABLED": "0",
+          "GOARCH": "amd64",
+          "GOOS": "windows",
+          "GOVERSION": "go1.24.13"
+        },
+        "scope": "One native Windows candidate-only selection after the observed overlap-selection failure: the unchanged gRPC values and required maintained index insert/find/recovery/remove coverage. Original baseline is retained without replay. Real database and aggregation; no mock, clock replacement, full suite, transport or performance claim.",
+        "formatter_output": "",
+        "source_blobs": {
+          "grpc_ingestion.go": "e78b4845364bc04c90c6993bdf6c42837aadd513",
+          "grpc_ingestion_write_test.go": "484c4ddcbd1a292d2ecb9e1c7d4de9a6bc051668",
+          "index.go": "232944e3986d8997716088488ef8feb916de7295",
+          "index_test.go": "140e0bf728092063014a2ac1cd88dc0cd80f6c05"
+        }
+      },
+      "candidate": {
+        "label": "final_candidate",
+        "exit_code": 0,
+        "wall_seconds": 81.25888657569885,
+        "command": [
+          "go",
+          "test",
+          "-short",
+          "-count=1",
+          "-timeout=90s",
+          "-run",
+          "^(TestGRPCIngestionEngine|TestGRPCHandleQuery(WithAggregation|AggregateBuckets|ReturnsResults|NilRequest)|TestIndex_(GetOrCreatePartition|FindPartitions(_Empty)?|RemovePartitionsBefore(_Empty)?|RemoveOldestPartition(_Empty)?|RemovePartitionByID(_NotFound)?))$",
+          "-json",
+          "."
+        ],
+        "tests": [
+          {
+            "Time": "2026-10-04T12:51:11.856287Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/write_and_query",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8568528Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/nil_request",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8568528Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/empty_metric_skipped",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8568528Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/services_reflection",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8568528Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/interceptor",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8590771Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/query_with_aggregation",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8590771Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine/config_defaults",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8709914Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCIngestionEngine",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:51:11.8897868Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryNilRequest",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9078253Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryReturnsResults",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9248811Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryWithAggregation",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/sum",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/avg",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/mean",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/min",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/max",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9338346Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/count",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9343988Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/rate",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9343988Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/limit",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9343988Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/raw",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9343988Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets/unsupported",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9465534Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestGRPCHandleQueryAggregateBuckets",
+            "Elapsed": 0.02
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9465534Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_GetOrCreatePartition",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9465534Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/overlap",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9465534Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/inside",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9465534Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/exact_boundaries",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/all",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/before",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/after",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/unbounded_end",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/empty",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/reversed",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9470638Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/unbounded_start_before_epoch",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions/earlier_long_overlap",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_FindPartitions_Empty",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemovePartitionsBefore",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemovePartitionsBefore_Empty",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemoveOldestPartition",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemoveOldestPartition_Empty",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.947575Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemovePartitionByID",
+            "Elapsed": 0
+          },
+          {
+            "Time": "2026-10-04T12:51:11.9482153Z",
+            "Action": "pass",
+            "Package": "github.com/chronicle-db/chronicle",
+            "Test": "TestIndex_RemovePartitionByID_NotFound",
+            "Elapsed": 0
+          }
+        ],
+        "passed_events": 42,
+        "failed_events": 0,
+        "skipped_events": 0,
+        "source_blobs": {
+          "grpc_ingestion.go": "e78b4845364bc04c90c6993bdf6c42837aadd513",
+          "grpc_ingestion_write_test.go": "484c4ddcbd1a292d2ecb9e1c7d4de9a6bc051668",
+          "index.go": "232944e3986d8997716088488ef8feb916de7295",
+          "index_test.go": "140e0bf728092063014a2ac1cd88dc0cd80f6c05"
+        }
+      }
+    },
+    "counts": {
+      "top_level_groups": 14,
+      "subcases": 28,
+      "test_pass_events": 42,
+      "independent_leaf_cases": 39,
+      "failures": 0,
+      "skips": 0
+    },
+    "artifact": {
+      "id": 11303603724,
+      "name": "chronicle104-grpc-relay17-final",
+      "size_in_bytes": 16263,
+      "github_reported_digest": "sha256:fd355406e9392b41651b0d63790e512d67e6e8de27a40a9308624f93e0d187e9",
+      "expires_at": "2026-10-18T12:51:12Z"
+    },
+    "raw_go_test_jsonl": "{\"Time\":\"2026-10-04T12:51:11.8199569Z\",\"Action\":\"start\",\"Package\":\"github.com/chronicle-db/chronicle\"}\n{\"Time\":\"2026-10-04T12:51:11.8478016Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine\"}\n{\"Time\":\"2026-10-04T12:51:11.8478016Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine\",\"Output\":\"=== RUN   TestGRPCIngestionEngine\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.855507Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/write_and_query\"}\n{\"Time\":\"2026-10-04T12:51:11.855507Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/write_and_query\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/write_and_query\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.856287Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/write_and_query\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/write_and_query (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.856287Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/write_and_query\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.856287Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/nil_request\"}\n{\"Time\":\"2026-10-04T12:51:11.856287Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/nil_request\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/nil_request\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/nil_request\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/nil_request (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/nil_request\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/empty_metric_skipped\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/empty_metric_skipped\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/empty_metric_skipped\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/empty_metric_skipped\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/empty_metric_skipped (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/empty_metric_skipped\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/services_reflection\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/services_reflection\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/services_reflection\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/services_reflection\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/services_reflection (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/services_reflection\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/interceptor\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/interceptor\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/interceptor\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/interceptor\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/interceptor (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/interceptor\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/query_with_aggregation\"}\n{\"Time\":\"2026-10-04T12:51:11.8568528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/query_with_aggregation\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/query_with_aggregation\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/query_with_aggregation\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/query_with_aggregation (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/query_with_aggregation\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/config_defaults\"}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/config_defaults\",\"Output\":\"=== RUN   TestGRPCIngestionEngine/config_defaults\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/config_defaults\",\"Output\":\"--- PASS: TestGRPCIngestionEngine/config_defaults (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8590771Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine/config_defaults\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.8709914Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine\",\"Output\":\"--- PASS: TestGRPCIngestionEngine (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8709914Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCIngestionEngine\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T12:51:11.8709914Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryNilRequest\"}\n{\"Time\":\"2026-10-04T12:51:11.8709914Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryNilRequest\",\"Output\":\"=== RUN   TestGRPCHandleQueryNilRequest\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8888692Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryNilRequest\",\"Output\":\"--- PASS: TestGRPCHandleQueryNilRequest (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.8897868Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryNilRequest\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T12:51:11.8897868Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryReturnsResults\"}\n{\"Time\":\"2026-10-04T12:51:11.8897868Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryReturnsResults\",\"Output\":\"=== RUN   TestGRPCHandleQueryReturnsResults\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9078253Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryReturnsResults\",\"Output\":\"--- PASS: TestGRPCHandleQueryReturnsResults (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9078253Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryReturnsResults\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T12:51:11.9078253Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryWithAggregation\"}\n{\"Time\":\"2026-10-04T12:51:11.9078253Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryWithAggregation\",\"Output\":\"=== RUN   TestGRPCHandleQueryWithAggregation\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9248811Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryWithAggregation\",\"Output\":\"--- PASS: TestGRPCHandleQueryWithAggregation (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9248811Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryWithAggregation\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T12:51:11.9248811Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets\"}\n{\"Time\":\"2026-10-04T12:51:11.9248811Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/sum\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/sum\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/sum\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/sum\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/sum (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/sum\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/avg\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/avg\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/avg\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/avg\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/avg (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/avg\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/mean\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/mean\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/mean\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/mean\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/mean (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/mean\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/min\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/min\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/min\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/min\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/min (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/min\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/max\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/max\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/max\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/max\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/max (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/max\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/count\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/count\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/count\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/count\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/count (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/count\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/rate\"}\n{\"Time\":\"2026-10-04T12:51:11.9338346Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/rate\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/rate\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/rate\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/rate (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/rate\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/limit\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/limit\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/limit\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/limit\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/limit (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/limit\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/raw\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/raw\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/raw\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/raw\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/raw (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/raw\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/unsupported\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/unsupported\",\"Output\":\"=== RUN   TestGRPCHandleQueryAggregateBuckets/unsupported\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/unsupported\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets/unsupported (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9343988Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets/unsupported\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets\",\"Output\":\"--- PASS: TestGRPCHandleQueryAggregateBuckets (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestGRPCHandleQueryAggregateBuckets\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_GetOrCreatePartition\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_GetOrCreatePartition\",\"Output\":\"=== RUN   TestIndex_GetOrCreatePartition\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_GetOrCreatePartition\",\"Output\":\"--- PASS: TestIndex_GetOrCreatePartition (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_GetOrCreatePartition\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions\",\"Output\":\"=== RUN   TestIndex_FindPartitions\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/overlap\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/overlap\",\"Output\":\"=== RUN   TestIndex_FindPartitions/overlap\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/overlap\",\"Output\":\"--- PASS: TestIndex_FindPartitions/overlap (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/overlap\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/inside\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/inside\",\"Output\":\"=== RUN   TestIndex_FindPartitions/inside\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/inside\",\"Output\":\"--- PASS: TestIndex_FindPartitions/inside (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/inside\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/exact_boundaries\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/exact_boundaries\",\"Output\":\"=== RUN   TestIndex_FindPartitions/exact_boundaries\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/exact_boundaries\",\"Output\":\"--- PASS: TestIndex_FindPartitions/exact_boundaries (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/exact_boundaries\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/all\"}\n{\"Time\":\"2026-10-04T12:51:11.9465534Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/all\",\"Output\":\"=== RUN   TestIndex_FindPartitions/all\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/all\",\"Output\":\"--- PASS: TestIndex_FindPartitions/all (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/all\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/before\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/before\",\"Output\":\"=== RUN   TestIndex_FindPartitions/before\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/before\",\"Output\":\"--- PASS: TestIndex_FindPartitions/before (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/before\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/after\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/after\",\"Output\":\"=== RUN   TestIndex_FindPartitions/after\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/after\",\"Output\":\"--- PASS: TestIndex_FindPartitions/after (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/after\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_end\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_end\",\"Output\":\"=== RUN   TestIndex_FindPartitions/unbounded_end\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_end\",\"Output\":\"--- PASS: TestIndex_FindPartitions/unbounded_end (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_end\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/empty\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/empty\",\"Output\":\"=== RUN   TestIndex_FindPartitions/empty\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/empty\",\"Output\":\"--- PASS: TestIndex_FindPartitions/empty (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/empty\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/reversed\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/reversed\",\"Output\":\"=== RUN   TestIndex_FindPartitions/reversed\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/reversed\",\"Output\":\"--- PASS: TestIndex_FindPartitions/reversed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/reversed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_start_before_epoch\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_start_before_epoch\",\"Output\":\"=== RUN   TestIndex_FindPartitions/unbounded_start_before_epoch\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_start_before_epoch\",\"Output\":\"--- PASS: TestIndex_FindPartitions/unbounded_start_before_epoch (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9470638Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/unbounded_start_before_epoch\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/earlier_long_overlap\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/earlier_long_overlap\",\"Output\":\"=== RUN   TestIndex_FindPartitions/earlier_long_overlap\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/earlier_long_overlap\",\"Output\":\"--- PASS: TestIndex_FindPartitions/earlier_long_overlap (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions/earlier_long_overlap\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions\",\"Output\":\"--- PASS: TestIndex_FindPartitions (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions_Empty\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions_Empty\",\"Output\":\"=== RUN   TestIndex_FindPartitions_Empty\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions_Empty\",\"Output\":\"--- PASS: TestIndex_FindPartitions_Empty (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_FindPartitions_Empty\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore\",\"Output\":\"=== RUN   TestIndex_RemovePartitionsBefore\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore\",\"Output\":\"--- PASS: TestIndex_RemovePartitionsBefore (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore_Empty\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore_Empty\",\"Output\":\"=== RUN   TestIndex_RemovePartitionsBefore_Empty\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore_Empty\",\"Output\":\"--- PASS: TestIndex_RemovePartitionsBefore_Empty (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionsBefore_Empty\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition\",\"Output\":\"=== RUN   TestIndex_RemoveOldestPartition\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition\",\"Output\":\"--- PASS: TestIndex_RemoveOldestPartition (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition_Empty\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition_Empty\",\"Output\":\"=== RUN   TestIndex_RemoveOldestPartition_Empty\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition_Empty\",\"Output\":\"--- PASS: TestIndex_RemoveOldestPartition_Empty (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemoveOldestPartition_Empty\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID\",\"Output\":\"=== RUN   TestIndex_RemovePartitionByID\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID\",\"Output\":\"--- PASS: TestIndex_RemovePartitionByID (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID_NotFound\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID_NotFound\",\"Output\":\"=== RUN   TestIndex_RemovePartitionByID_NotFound\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.947575Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID_NotFound\",\"Output\":\"--- PASS: TestIndex_RemovePartitionByID_NotFound (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.9482153Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestIndex_RemovePartitionByID_NotFound\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:51:11.9482153Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"PASS\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.951981Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"ok  \\tgithub.com/chronicle-db/chronicle\\t0.132s\\n\"}\n{\"Time\":\"2026-10-04T12:51:11.951981Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Elapsed\":0.132}\n"
+  },
+  "integrity": {
+    "executed_and_published_source_blobs": {
+      "grpc_ingestion.go": "e78b4845364bc04c90c6993bdf6c42837aadd513",
+      "grpc_ingestion_write_test.go": "484c4ddcbd1a292d2ecb9e1c7d4de9a6bc051668",
+      "index.go": "232944e3986d8997716088488ef8feb916de7295",
+      "index_test.go": "140e0bf728092063014a2ac1cd88dc0cd80f6c05"
+    },
+    "postimage_hash_check": "Git blob SHA-1 recomputed from the final job's actual postimage bytes and compared with its recorded hashes.",
+    "intervening_change": "efb80aefe3af26183e765607ea013ca2d3ab2b1b..f47fac34f6de45d648b8c86f2cec6f00f88176c9 changes only docs/WINDOWS.md. Original peer changes are preserved.",
+    "artifact_digest_scope": "Digests are GitHub-reported metadata. Archive bytes were not independently downloaded and hashed in this session."
+  },
+  "limits": [
+    "Focused real handler/database/aggregation/index execution only; no networked client result, full repository suite or race-detector claim.",
+    "Wall times include compilation and are not comparable performance benchmarks.",
+    "Original PR, branch, submission and payout custody remain in place; maintainer acceptance and payment are not established by this test result."
+  ]
+}

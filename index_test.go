@@ -54,28 +54,70 @@ func TestIndex_GetOrCreatePartition(t *testing.T) {
 func TestIndex_FindPartitions(t *testing.T) {
 	idx := newIndex()
 
-	// Create partitions
+	// Insert out of order to exercise the sorted index invariant.
+	idx.GetOrCreatePartition(3, 3000, 4000)
 	idx.GetOrCreatePartition(1, 1000, 2000)
 	idx.GetOrCreatePartition(2, 2000, 3000)
-	idx.GetOrCreatePartition(3, 3000, 4000)
 
-	// Find overlapping partitions
-	parts := idx.FindPartitions(1500, 2500)
-	if len(parts) < 1 {
-		t.Errorf("expected at least 1 partition, got %d", len(parts))
+	// Recovery keeps the order used by overlap selection.
+	payload, err := encodeIndex(idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, err = decodeIndex(payload)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// Find all partitions
-	parts = idx.FindPartitions(0, 5000)
-	if len(parts) != 3 {
-		t.Errorf("expected 3 partitions, got %d", len(parts))
+	for _, tc := range []struct {
+		name       string
+		start, end int64
+		ids        []uint64
+	}{
+		{name: "overlap", start: 1500, end: 2500, ids: []uint64{1, 2}},
+		{name: "inside", start: 1500, end: 1600, ids: []uint64{1}},
+		{name: "exact_boundaries", start: 2000, end: 3000, ids: []uint64{2}},
+		{name: "all", start: 0, end: 5000, ids: []uint64{1, 2, 3}},
+		{name: "before", start: 0, end: 1000},
+		{name: "after", start: 4000, end: 5000},
+		{name: "unbounded_end", start: 3500, ids: []uint64{3}},
+		{name: "empty", start: 1500, end: 1500},
+		{name: "reversed", start: 2500, end: 1500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := idx.FindPartitions(tc.start, tc.end)
+			if len(parts) != len(tc.ids) {
+				t.Fatalf("got %d partitions, want IDs %v", len(parts), tc.ids)
+			}
+			for i, part := range parts {
+				if part.id != tc.ids[i] {
+					t.Errorf("partition %d has ID %d, want %d", i, part.id, tc.ids[i])
+				}
+			}
+		})
 	}
 
-	// No match
-	parts = idx.FindPartitions(5000, 6000)
-	if len(parts) != 0 {
-		t.Errorf("expected 0 partitions, got %d", len(parts))
-	}
+	t.Run("unbounded_start_before_epoch", func(t *testing.T) {
+		negative := newIndex()
+		negative.GetOrCreatePartition(5, -3000, -2000)
+		negative.GetOrCreatePartition(6, -1000, 1000)
+		parts := negative.FindPartitions(0, -2500)
+		if len(parts) != 1 || parts[0].id != 5 {
+			t.Fatalf("expected the pre-epoch partition, got %+v", parts)
+		}
+		parts = negative.FindPartitions(0, 0)
+		if len(parts) != 2 || parts[0].id != 5 || parts[1].id != 6 {
+			t.Fatalf("expected both unbounded partitions, got %+v", parts)
+		}
+	})
+
+	t.Run("earlier_long_overlap", func(t *testing.T) {
+		idx.GetOrCreatePartition(4, 500, 4500)
+		parts := idx.FindPartitions(2500, 2600)
+		if len(parts) != 2 || parts[0].id != 4 || parts[1].id != 2 {
+			t.Fatalf("expected the long and containing partitions, got %+v", parts)
+		}
+	})
 }
 
 func TestIndex_FindPartitions_Empty(t *testing.T) {
