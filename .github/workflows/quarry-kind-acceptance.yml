@@ -1,0 +1,39 @@
+name: Chronicle 105 isolated Kubernetes acceptance
+on:
+  push:
+    branches: [validation/quarry-chronicle105-kind-20261004]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quarry-chronicle105-kind-87d28f7e
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: control
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 87d28f7ee80960f0d70e29e2bb73e47048771771
+          path: subject
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: false
+      - name: Install pinned local-cluster CLI
+        run: go install sigs.k8s.io/kind@v0.27.0
+      - name: Build and exercise committed deployment
+        run: python control/acceptance.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chronicle105-kind-87d28f7e
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
