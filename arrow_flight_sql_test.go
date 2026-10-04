@@ -2,6 +2,8 @@ package chronicle
 
 import (
 	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -384,7 +386,9 @@ func TestFlightSQLServer_HandleStatementQuery(t *testing.T) {
 	}
 	defer db.Close()
 
-	now := time.Now().UnixNano()
+	// Keep both rows inside the default last-hour range, whose upper bound is
+	// exclusive. A Windows clock tick may not advance between write and query.
+	now := time.Now().Add(-time.Minute).UnixNano()
 	points := []Point{
 		{Metric: "cpu", Tags: map[string]string{"host": "server1"}, Value: 42.5, Timestamp: now},
 		{Metric: "cpu", Tags: map[string]string{"host": "server2"}, Value: 73.1, Timestamp: now + 1},
@@ -517,4 +521,125 @@ func TestFlightSQLServer_HandleGetFlightInfo(t *testing.T) {
 			t.Error("expected error for unsupported descriptor type")
 		}
 	})
+}
+
+func TestFlightSQLServer_StatementIdentity(t *testing.T) {
+	factories := []struct {
+		name   string
+		prefix string
+		create func(*FlightSQLServer, string) (string, error)
+	}{
+		{"statement", "stmt", func(s *FlightSQLServer, sql string) (string, error) {
+			info, err := s.GetFlightInfoStatement(sql)
+			if err != nil {
+				return "", err
+			}
+			return string(info.Endpoints[0].Ticket.Ticket), nil
+		}},
+		{"prepared", "prepared", func(s *FlightSQLServer, sql string) (string, error) {
+			id, _, err := s.CreatePreparedStatement(sql)
+			return id, err
+		}},
+	}
+	for _, factory := range factories {
+		for _, concurrent := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/concurrent=%t", factory.name, concurrent), func(t *testing.T) {
+				server := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+				const count = 1024
+				ids := make([]string, count)
+				statements := make([]string, count)
+				errors := make([]error, count)
+				create := func(i int) {
+					statements[i] = fmt.Sprintf("SELECT * FROM metric_%d", i)
+					ids[i], errors[i] = factory.create(server, statements[i])
+				}
+				if concurrent {
+					var wg sync.WaitGroup
+					start := make(chan struct{})
+					for worker := 0; worker < 16; worker++ {
+						wg.Add(1)
+						go func(worker int) {
+							defer wg.Done()
+							<-start
+							for i := worker; i < count; i += 16 {
+								create(i)
+							}
+						}(worker)
+					}
+					close(start)
+					wg.Wait()
+				} else {
+					for i := 0; i < count; i++ {
+						create(i)
+					}
+				}
+
+				unique := make(map[string]bool, count)
+				mismatches := 0
+				for i, id := range ids {
+					if errors[i] != nil {
+						t.Fatalf("create %d: %v", i, errors[i])
+					}
+					unique[id] = true
+					stored := server.preparedStatements[id]
+					if stored == nil || stored.id != id || stored.sql != statements[i] {
+						mismatches++
+					}
+				}
+				t.Logf("created=%d unique=%d registry=%d changed_bindings=%d", count, len(unique), len(server.preparedStatements), mismatches)
+				if len(unique) != count || len(server.preparedStatements) != count || mismatches != 0 {
+					t.Errorf("every returned ticket must retain its own SQL statement")
+				}
+			})
+		}
+
+		t.Run(factory.name+"/reserved_and_closed", func(t *testing.T) {
+			server := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+			reservedID := factory.prefix + "-1"
+			reserved := &preparedStatement{id: reservedID, sql: "SELECT * FROM reserved"}
+			server.preparedStatements[reservedID] = reserved
+			id, err := factory.create(server, "SELECT * FROM first")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if id == reservedID || server.preparedStatements[reservedID] != reserved {
+				t.Fatal("generated statement overwrote an existing wire-supplied ID")
+			}
+			if err := server.ClosePreparedStatement(id); err != nil {
+				t.Fatal(err)
+			}
+			nextID, err := factory.create(server, "SELECT * FROM second")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if nextID == id {
+				t.Fatal("closed ticket was rebound to a different SQL statement")
+			}
+			if _, err := server.DoGetStatement(id); err == nil {
+				t.Fatal("closed ticket must stay invalid")
+			}
+			if server.preparedStatements[nextID].sql != "SELECT * FROM second" {
+				t.Fatal("new statement lost its SQL binding")
+			}
+		})
+
+		t.Run(factory.name+"/fresh_instance", func(t *testing.T) {
+			first := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+			second := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+			oldID, err := factory.create(first, "SELECT * FROM previous")
+			if err != nil {
+				t.Fatal(err)
+			}
+			newID, err := factory.create(second, "SELECT * FROM current")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if newID == oldID {
+				t.Fatal("fresh server rebound another server's generated ticket")
+			}
+			if _, err := second.DoGetStatement(oldID); err == nil {
+				t.Fatal("previous server's ticket must not select a fresh statement")
+			}
+		})
+	}
 }

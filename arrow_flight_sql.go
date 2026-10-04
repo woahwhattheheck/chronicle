@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -554,11 +555,9 @@ func (s *FlightSQLServer) GetFlightInfoStatement(sql string) (*FlightInfo, error
 		return nil, fmt.Errorf("empty SQL statement")
 	}
 
-	// Generate a unique ticket for this query
-	ticketID := fmt.Sprintf("stmt-%d", time.Now().UnixNano())
-
 	// Store the prepared statement for later DoGet
 	s.sessionMu.Lock()
+	ticketID := s.nextStatementIDLocked("stmt")
 	s.preparedStatements[ticketID] = &preparedStatement{
 		id:      ticketID,
 		sql:     sql,
@@ -597,10 +596,10 @@ func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSch
 		return "", nil, fmt.Errorf("SQL queries are disabled")
 	}
 
-	stmtID := fmt.Sprintf("prepared-%d", time.Now().UnixNano())
 	schema := ChronicleSchema()
 
 	s.sessionMu.Lock()
+	stmtID := s.nextStatementIDLocked("prepared")
 	s.preparedStatements[stmtID] = &preparedStatement{
 		id:      stmtID,
 		sql:     sql,
@@ -610,6 +609,17 @@ func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSch
 	s.sessionMu.Unlock()
 
 	return stmtID, &schema, nil
+}
+
+// nextStatementIDLocked allocates an opaque ID while sessionMu is held.
+// Random IDs avoid clock and server-restart aliases; existing wire IDs stay live.
+func (s *FlightSQLServer) nextStatementIDLocked(prefix string) string {
+	for {
+		id := prefix + "-" + rand.Text()
+		if _, exists := s.preparedStatements[id]; !exists {
+			return id
+		}
+	}
 }
 
 // ClosePreparedStatement closes a previously created prepared statement.

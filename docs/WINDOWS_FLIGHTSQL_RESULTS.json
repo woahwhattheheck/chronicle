@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "pull_request": "https://github.com/josedab/chronicle/pull/104",
+  "issue": 54,
+  "publication_parent": "1b297a1bc7ece0ee03f1367b78a778b274308fdb",
+  "baseline": {
+    "label": "baseline",
+    "exit_code": 1,
+    "wall_seconds": 68.21836161613464,
+    "command": [
+      "go",
+      "test",
+      "-short",
+      "-count=1",
+      "-timeout=90s",
+      "-run",
+      "^TestFlightSQLServer_(HandleStatementQuery|StatementIdentity)$",
+      "-json",
+      "."
+    ],
+    "tests": [
+      {
+        "Time": "2026-10-04T11:58:31.4333597Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/valid_query",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4333597Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/SQL_disabled",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4333597Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/invalid_SQL",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4448094Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4461123Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4477047Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4482528Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4482528Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4493652Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4493652Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:31.4493652Z",
+        "Action": "fail",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity",
+        "Elapsed": 0
+      }
+    ],
+    "passed_events": 2,
+    "failed_events": 9,
+    "skipped_events": 0,
+    "identity_observations": [
+      "arrow_flight_sql_test.go:587: created=1024 unique=3 registry=3 changed_bindings=1021",
+      "arrow_flight_sql_test.go:587: created=1024 unique=4 registry=4 changed_bindings=1020",
+      "arrow_flight_sql_test.go:587: created=1024 unique=1 registry=1 changed_bindings=1023",
+      "arrow_flight_sql_test.go:587: created=1024 unique=2 registry=2 changed_bindings=1022"
+    ],
+    "source_blobs": {
+      "arrow_flight_sql.go": "4b9a1c31b8060d35f30a9ad2d95cd3c39458f528",
+      "arrow_flight_sql_test.go": "7bbdc87634520c5dd82900ce32c2b85db8625645"
+    },
+    "diff_stat": "arrow_flight_sql_test.go | 104 +++++++++++++++++++++++++++++++++++++++++++++++\n 1 file changed, 104 insertions(+)"
+  },
+  "intermediate_candidate": {
+    "label": "candidate",
+    "exit_code": 0,
+    "wall_seconds": 17.925280809402466,
+    "command": [
+      "go",
+      "test",
+      "-short",
+      "-count=1",
+      "-timeout=90s",
+      "-run",
+      "^TestFlightSQLServer_(HandleStatementQuery|StatementIdentity)$",
+      "-json",
+      "."
+    ],
+    "tests": [
+      {
+        "Time": "2026-10-04T11:58:49.7046718Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/valid_query",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7046718Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/SQL_disabled",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7046718Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/invalid_SQL",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.716931Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-04T11:58:49.718024Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7202384Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7207812Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7211457Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7222511Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7222511Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T11:58:49.7222511Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity",
+        "Elapsed": 0.01
+      }
+    ],
+    "passed_events": 11,
+    "failed_events": 0,
+    "skipped_events": 0,
+    "identity_observations": [
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0"
+    ],
+    "source_blobs": {
+      "arrow_flight_sql.go": "f030d5bbe435c1bc5fa393f0ed5d924da6c90038",
+      "arrow_flight_sql_test.go": "8d4863ed83975bca455903887e3c67d79a4475f0"
+    },
+    "diff_stat": "",
+    "publication_status": "Superseded validation candidate; not published to original PR"
+  },
+  "final_candidate": {
+    "label": "candidate",
+    "exit_code": 0,
+    "wall_seconds": 32.419438123703,
+    "command": [
+      "go",
+      "test",
+      "-short",
+      "-count=1",
+      "-timeout=90s",
+      "-run",
+      "^TestFlightSQLServer_(HandleStatementQuery|StatementIdentity)$",
+      "-json",
+      "."
+    ],
+    "tests": [
+      {
+        "Time": "2026-10-04T12:04:18.4693617Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/valid_query",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4693617Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/SQL_disabled",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4693617Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery/invalid_SQL",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4824166Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_HandleStatementQuery",
+        "Elapsed": 0.42
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4839393Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4875519Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4875519Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4879812Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/statement/fresh_instance",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4886618Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=false",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4901352Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/concurrent=true",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4901352Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4908827Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity/prepared/fresh_instance",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-04T12:04:18.4908827Z",
+        "Action": "pass",
+        "Package": "github.com/chronicle-db/chronicle",
+        "Test": "TestFlightSQLServer_StatementIdentity",
+        "Elapsed": 0.01
+      }
+    ],
+    "passed_events": 13,
+    "failed_events": 0,
+    "skipped_events": 0,
+    "identity_observations": [
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0",
+      "arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0"
+    ],
+    "source_blobs": {
+      "arrow_flight_sql.go": "8dd540d79dcb328e768ded41b2d4c87e873e31ab",
+      "arrow_flight_sql_test.go": "7cdae1b81fb625f00c5cfadd3267c7c1c8368bb8"
+    },
+    "diff_stat": ""
+  },
+  "first_run_provenance": {
+    "baseline_commit": "0c6cb51397f4c564e6c8595139796b04bb144b95",
+    "controller_commit": "c9b149031c4d09c8f7541e0f0055bfdbad65f54f",
+    "platform": "Windows-2025Server-10.0.26100-SP0",
+    "go_environment": {
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "windows",
+      "GOVERSION": "go1.24.13"
+    },
+    "scope": "Native Windows complete repository, two focused root-package groups; no mocks, altered clock, full suite or network-client claim.",
+    "formatter_output": ""
+  },
+  "final_run_provenance": {
+    "baseline_commit": "0c6cb51397f4c564e6c8595139796b04bb144b95",
+    "baseline_run_id": 37200445799,
+    "baseline_artifact_id": 11302224760,
+    "baseline_archive_sha256": "48afc28a8cab281afa1b66737b38d7a9e0f0de38d198528966871e8ed25ef866",
+    "baseline_repeated": false,
+    "controller_commit": "c8923af5f4239f15795c8d1f43d130a0dfb65f87",
+    "platform": "Windows-2025Server-10.0.26100-SP0",
+    "go_environment": {
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "windows",
+      "GOVERSION": "go1.24.13"
+    },
+    "scope": "Final native Windows candidate only, two focused root-package groups; no mocks, altered clock, full suite or network-client claim.",
+    "formatter_output": ""
+  },
+  "archives": [
+    {
+      "run_id": 37200445799,
+      "artifact_id": 11302224760,
+      "sha256": "48afc28a8cab281afa1b66737b38d7a9e0f0de38d198528966871e8ed25ef866",
+      "bytes": 25188
+    },
+    {
+      "run_id": 37200781892,
+      "artifact_id": 11302073637,
+      "sha256": "454d2f2b628089aefdb28e1de5ce16c1ea4aaa3247f6e3cdcc6d43d3cb67997a",
+      "bytes": 12735
+    }
+  ],
+  "baseline_repeated": false,
+  "selection": {
+    "baseline_leaf_cases": 9,
+    "final_leaf_cases": 11,
+    "additional_final_controls": 2
+  },
+  "raw_outputs": {
+    "baseline": {
+      "stdout_jsonl": "{\"Time\":\"2026-10-04T11:58:31.401576Z\",\"Action\":\"start\",\"Package\":\"github.com/chronicle-db/chronicle\"}\n{\"Time\":\"2026-10-04T11:58:31.4232494Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\"}\n{\"Time\":\"2026-10-04T11:58:31.4232494Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4327697Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/valid_query\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"    arrow_flight_sql_test.go:414: expected at least 2 rows, got 0\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"--- FAIL: TestFlightSQLServer_HandleStatementQuery/valid_query (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/SQL_disabled\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/SQL_disabled (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/invalid_SQL\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/invalid_SQL (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4333597Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"--- FAIL: TestFlightSQLServer_HandleStatementQuery (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\"}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\"}\n{\"Time\":\"2026-10-04T11:58:31.4448094Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:587: created=1024 unique=3 registry=3 changed_bindings=1021\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: every returned ticket must retain its own SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/statement/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\"}\n{\"Time\":\"2026-10-04T11:58:31.4461123Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:587: created=1024 unique=4 registry=4 changed_bindings=1020\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: every returned ticket must retain its own SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/statement/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4477047Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"    arrow_flight_sql_test.go:614: closed ticket was rebound to a different SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:587: created=1024 unique=1 registry=1 changed_bindings=1023\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: every returned ticket must retain its own SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/prepared/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4482528Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4488247Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\"}\n{\"Time\":\"2026-10-04T11:58:31.4488247Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:587: created=1024 unique=2 registry=2 changed_bindings=1022\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: every returned ticket must retain its own SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/prepared/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"    arrow_flight_sql_test.go:614: closed ticket was rebound to a different SQL statement\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"--- FAIL: TestFlightSQLServer_StatementIdentity (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4493652Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:31.4499058Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"FAIL\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4521051Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"FAIL\\tgithub.com/chronicle-db/chronicle\\t0.051s\\n\"}\n{\"Time\":\"2026-10-04T11:58:31.4521051Z\",\"Action\":\"fail\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Elapsed\":0.051}\n",
+      "stderr": "go: downloading github.com/aws/aws-sdk-go-v2/config v1.27.11\ngo: downloading github.com/aws/aws-sdk-go-v2 v1.41.1\ngo: downloading github.com/aws/aws-sdk-go-v2/credentials v1.17.11\ngo: downloading github.com/aws/aws-sdk-go-v2/service/s3 v1.53.1\ngo: downloading github.com/golang/snappy v1.0.0\ngo: downloading github.com/gorilla/websocket v1.5.3\ngo: downloading github.com/prometheus/prometheus v0.53.0\ngo: downloading golang.org/x/crypto v0.28.0\ngo: downloading golang.org/x/sys v0.37.0\ngo: downloading gopkg.in/yaml.v3 v3.0.1\ngo: downloading modernc.org/sqlite v1.44.3\ngo: downloading go.uber.org/goleak v1.3.0\ngo: downloading github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.17\ngo: downloading github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4\ngo: downloading github.com/aws/aws-sdk-go-v2/service/sso v1.30.9\ngo: downloading github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13\ngo: downloading github.com/aws/aws-sdk-go-v2/service/sts v1.41.6\ngo: downloading github.com/aws/smithy-go v1.24.0\ngo: downloading github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4\ngo: downloading github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17\ngo: downloading github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.17\ngo: downloading github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4\ngo: downloading github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.8\ngo: downloading github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.17\ngo: downloading github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.17\ngo: downloading github.com/gogo/protobuf v1.3.2\ngo: downloading modernc.org/libc v1.67.6\ngo: downloading github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17\ngo: downloading golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546\ngo: downloading github.com/ncruces/go-strftime v1.0.0\ngo: downloading github.com/dustin/go-humanize v1.0.1\ngo: downloading github.com/mattn/go-isatty v0.0.20\ngo: downloading modernc.org/mathutil v1.7.1\ngo: downloading modernc.org/memory v1.11.0\ngo: downloading github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec\n"
+    },
+    "intermediate_candidate": {
+      "stdout_jsonl": "{\"Time\":\"2026-10-04T11:58:49.6722632Z\",\"Action\":\"start\",\"Package\":\"github.com/chronicle-db/chronicle\"}\n{\"Time\":\"2026-10-04T11:58:49.6945649Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\"}\n{\"Time\":\"2026-10-04T11:58:49.6945649Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7038994Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\"}\n{\"Time\":\"2026-10-04T11:58:49.7038994Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/valid_query\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/valid_query (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/SQL_disabled\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/SQL_disabled (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/invalid_SQL\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/invalid_SQL (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7046718Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery (0.02s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Elapsed\":0.02}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\"}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\"}\n{\"Time\":\"2026-10-04T11:58:49.716931Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.718024Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.718024Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.718024Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.718024Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\"}\n{\"Time\":\"2026-10-04T11:58:49.718024Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7202384Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7202384Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7202384Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\"}\n{\"Time\":\"2026-10-04T11:58:49.7207812Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7211457Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7211457Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7211457Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7211457Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\"}\n{\"Time\":\"2026-10-04T11:58:49.7211457Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity (0.01s)\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Elapsed\":0.01}\n{\"Time\":\"2026-10-04T11:58:49.7222511Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"PASS\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7249687Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"ok  \\tgithub.com/chronicle-db/chronicle\\t0.053s\\n\"}\n{\"Time\":\"2026-10-04T11:58:49.7249687Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Elapsed\":0.053}\n",
+      "stderr": ""
+    },
+    "final_candidate": {
+      "stdout_jsonl": "{\"Time\":\"2026-10-04T12:04:17.302197Z\",\"Action\":\"start\",\"Package\":\"github.com/chronicle-db/chronicle\"}\n{\"Time\":\"2026-10-04T12:04:18.0637813Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\"}\n{\"Time\":\"2026-10-04T12:04:18.0637813Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/valid_query\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/valid_query (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/valid_query\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/SQL_disabled\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/SQL_disabled (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/SQL_disabled\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"=== RUN   TestFlightSQLServer_HandleStatementQuery/invalid_SQL\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery/invalid_SQL (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4693617Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery/invalid_SQL\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Output\":\"--- PASS: TestFlightSQLServer_HandleStatementQuery (0.42s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_HandleStatementQuery\",\"Elapsed\":0.42}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\"}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\"}\n{\"Time\":\"2026-10-04T12:04:18.4824166Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4839393Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4839393Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4839393Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4839393Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\"}\n{\"Time\":\"2026-10-04T12:04:18.4839393Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/fresh_instance\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/fresh_instance\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/statement/fresh_instance\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4875519Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/fresh_instance\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/statement/fresh_instance (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4879812Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/statement/fresh_instance\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4879812Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\"}\n{\"Time\":\"2026-10-04T12:04:18.4879812Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4886618Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4886618Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/concurrent=false (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4886618Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=false\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4886618Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\"}\n{\"Time\":\"2026-10-04T12:04:18.4886618Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"    arrow_flight_sql_test.go:589: created=1024 unique=1024 registry=1024 changed_bindings=0\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/concurrent=true (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/concurrent=true\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/reserved_and_closed\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"run\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/fresh_instance\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/fresh_instance\",\"Output\":\"=== RUN   TestFlightSQLServer_StatementIdentity/prepared/fresh_instance\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4901352Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/fresh_instance\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity/prepared/fresh_instance (0.00s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4908827Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity/prepared/fresh_instance\",\"Elapsed\":0}\n{\"Time\":\"2026-10-04T12:04:18.4908827Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Output\":\"--- PASS: TestFlightSQLServer_StatementIdentity (0.01s)\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4908827Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Test\":\"TestFlightSQLServer_StatementIdentity\",\"Elapsed\":0.01}\n{\"Time\":\"2026-10-04T12:04:18.4908827Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"PASS\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4940365Z\",\"Action\":\"output\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Output\":\"ok  \\tgithub.com/chronicle-db/chronicle\\t1.192s\\n\"}\n{\"Time\":\"2026-10-04T12:04:18.4940365Z\",\"Action\":\"pass\",\"Package\":\"github.com/chronicle-db/chronicle\",\"Elapsed\":1.192}\n",
+      "stderr": ""
+    }
+  }
+}
