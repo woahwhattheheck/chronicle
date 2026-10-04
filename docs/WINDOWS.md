@@ -2,7 +2,38 @@
 
 Bounty #9 (`docs/BOUNTY_PROGRAM.md`): run Chronicle on Windows and document compatibility issues.
 
-## Native execution on October 4, 2026
+## Current contribution and result index — October 4, 2026
+
+The original [PR #104](https://github.com/josedab/chronicle/pull/104) now includes
+the native WAL repair and the follow-up changes below. Product checkpoint:
+`0c6cb51397f4c564e6c8595139796b04bb144b95`. This index changes documentation only.
+
+Each linked report identifies its executed source, command, platform, raw results
+and coverage limits. The focused results were produced on separate source
+revisions; they must not be added together or described as a passing execution
+of the final composed branch.
+
+| Area | Change now in the contribution | Existing execution and scope |
+|---|---|---|
+| Windows disk space and WAL | Portable disk lookup and checked reset through a separate writable handle | Eight selected native groups passed at `006bc101`; the original record follows below |
+| [Digital Twin cleanup](WINDOWS_DIGITALTWIN.md) | Close the caller-owned database before temporary-directory cleanup | The same ten selected native cases failed before and passed after the fixture repair |
+| [Continuous-query registration](WINDOWS_CONTINUOUSQUERY.md) | Unique engine-local handles and capacity checks under the registry lock | Four selected native groups passed; query retention and concurrent admission are covered |
+| [OTel lifecycle](WINDOWS_OTEL_LIFECYCLE.md) | Synchronize enqueue with shutdown; remove an invalid positive-initial-uptime assumption | Two selected native groups passed; the send/close panic was reproduced before the fix |
+| [Streaming SQL registration](WINDOWS_STREAMING_SQL.md) | Preserve distinct query handles and enforce the concurrent capacity limit | Four selected native groups passed, including both capacity subcases |
+| [Export paths](WINDOWS_EXPORT_PATH.md) | Apply the existing sensitive-directory policy using Windows path rules | Four selected native groups passed, including real CSV creation and the Windows path table |
+| [Configuration migration](WINDOWS_CONFIG_MIGRATION.md) | Initialize valid unrelated storage defaults in the maintained fixture | All 16 migration subcases passed natively; production validation remains unchanged |
+| [Multimodal identities](WINDOWS_MULTIMODAL_IDS.md) | Preserve distinct generated log/span IDs on repeated clock ticks | The same four selected native cases failed before and passed after; explicit producer IDs remain supported |
+| [Notebook parser and identity composition](WINDOWS_NOTEBOOKS.md) | Retain prose after fenced queries and preserve the separately integrated ID implementation | The parser and its assertion match a 15-group native candidate; that candidate used a different ID implementation, so the combined branch has no aggregate notebook pass claim |
+| [Other clock and delta-sync repairs](WINDOWS_CLOCK_FIXES.md) | Preserve notebook/cell, alert, batch and explanation identities; retain request lifetime and queued work | A focused local notebook replay is recorded. Alert, delta-sync and explanation changes have no new native execution result |
+
+The repository-wide failure inventory below is the historical observation at
+`006bc101`, before these follow-ups. It remains evidence of that run; it is not
+a freshly measured list of failures at the current product checkpoint. No
+repository-wide rerun of the composed branch, upstream CI approval, bounty
+acceptance or payment is established by this index. Existing reproduction
+commands and coverage limits remain in the linked reports.
+
+## Historical native execution on October 4, 2026
 
 | Item | Recorded value |
 |---|---|

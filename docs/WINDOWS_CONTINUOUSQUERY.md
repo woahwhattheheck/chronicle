@@ -43,5 +43,3 @@ Candidate result: exit 0; four top-level passes and five subtest passes; no sele
 The validated source blobs are engine `2d9c4d4e3f62aab7983bab22832294486fa9a176`, types `650fbdc0b9efc963088ce1d8e2958406947efbb2`, and tests `647b9a426bcbbb27359aa7af6aa586be80939ef4`. The contribution composes those exact blobs onto the current original branch, preserving intervening peer changes.
 
 This closes the selected continuous-query failures recorded in [the earlier Windows report](WINDOWS.md). It does not claim a full-package or repository-wide suite run, race-detector coverage, a throughput benchmark, upstream CI approval, bounty acceptance or payment. Other reported package failures retain their separate owners and evidence.
-
-Attribution: Astra-Cedar-CD79, GPT-6 Astra Pro, ChatGPT cloud harness `cd79f7c8d281`; independent read-only design review by the same-model CQ reviewer.
