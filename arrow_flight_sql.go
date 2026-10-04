@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -70,7 +71,6 @@ type FlightSQLServer struct {
 	sessions           map[string]*flightSQLSession
 	preparedStatements map[string]*preparedStatement
 	sessionMu          sync.RWMutex
-	statementSequence  uint64
 
 	// Concurrency limiter.
 	streamSem chan struct{}
@@ -612,11 +612,10 @@ func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSch
 }
 
 // nextStatementIDLocked allocates an opaque ID while sessionMu is held.
-// Clock ticks can repeat, and the wire protocol can supply existing IDs.
+// Random IDs avoid clock and server-restart aliases; existing wire IDs stay live.
 func (s *FlightSQLServer) nextStatementIDLocked(prefix string) string {
 	for {
-		s.statementSequence++
-		id := fmt.Sprintf("%s-%d", prefix, s.statementSequence)
+		id := prefix + "-" + rand.Text()
 		if _, exists := s.preparedStatements[id]; !exists {
 			return id
 		}

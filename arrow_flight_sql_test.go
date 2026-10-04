@@ -622,5 +622,24 @@ func TestFlightSQLServer_StatementIdentity(t *testing.T) {
 				t.Fatal("new statement lost its SQL binding")
 			}
 		})
+
+		t.Run(factory.name+"/fresh_instance", func(t *testing.T) {
+			first := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+			second := NewFlightSQLServer(nil, DefaultFlightSQLConfig())
+			oldID, err := factory.create(first, "SELECT * FROM previous")
+			if err != nil {
+				t.Fatal(err)
+			}
+			newID, err := factory.create(second, "SELECT * FROM current")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if newID == oldID {
+				t.Fatal("fresh server rebound another server's generated ticket")
+			}
+			if _, err := second.DoGetStatement(oldID); err == nil {
+				t.Fatal("previous server's ticket must not select a fresh statement")
+			}
+		})
 	}
 }

@@ -22,13 +22,13 @@ jobs:
         with:
           go-version: '1.24.13'
           cache: true
-      - name: Run one native baseline and candidate selection
+      - name: Run final native candidate without repeating baseline
         shell: pwsh
-        run: python work/validation/chronicle104-flightsql-relay17/run.py
+        run: python work/validation/chronicle104-flightsql-relay17/run_final.py
       - name: Retain exact source and raw execution evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chronicle104-flightsql-relay17
+          name: chronicle104-flightsql-relay17-final
           path: flight-evidence/
           retention-days: 14
