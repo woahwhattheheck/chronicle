@@ -68,9 +68,15 @@ Features demonstrated:
 ### [home-automation](./home-automation)
 MQTT / Zigbee / Z-Wave style sensor ingestion for smart-home data.
 
+For a broker-free demonstration, run from `examples/`:
+
 ```bash
-cd home-automation && go run .
+cd home-automation && go run . -mode simulate
 ```
+
+Without `-mode simulate`, the default `mqtt` mode requires a reachable broker.
+See the [home-automation guide](./home-automation/README.md#run-with-the-local-broker)
+for the local broker setup and commands to publish sensor reports.
 
 Features demonstrated:
 - Multi-protocol topic simulation
