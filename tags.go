@@ -111,6 +111,12 @@ func matchSeriesTagFilters(seriesTags map[string]string, filters []TagFilter) bo
 // tagFilterExcludes uses a query-prepared lookup when available. Direct
 // matcher callers and small lists retain the same allocation-free scan.
 func tagFilterExcludes(filter TagFilter, value string) bool {
+	if len(filter.Values) == 0 {
+		return false
+	}
+	if len(filter.Values) == 1 {
+		return value == filter.Values[0]
+	}
 	if filter.excludedValues != nil {
 		_, excluded := filter.excludedValues[value]
 		return excluded
