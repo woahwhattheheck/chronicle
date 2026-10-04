@@ -1,0 +1,34 @@
+name: Chronicle104 focused Windows TSDiffMerge validation
+'on':
+  push:
+    branches:
+      - validation/chronicle104-tsdiff-zero-sol1048
+    paths:
+      - .github/workflows/verify-chronicle104-tsdiff-zero.yml
+permissions:
+  contents: read
+jobs:
+  focused-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - name: Check out validation candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+      - name: Record native runtime
+        shell: pwsh
+        run: |
+          go version
+          go env GOOS GOARCH GOHOSTOS GOHOSTARCH CGO_ENABLED
+          git rev-parse HEAD
+      - name: Run only the previously failing diff test
+        shell: pwsh
+        run: go test -short -count=1 -p=2 -timeout=120s -run '^TestTSDiffMerge_DiffBranches$' .
