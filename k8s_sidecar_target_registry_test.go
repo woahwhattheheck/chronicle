@@ -15,6 +15,25 @@ func sidecarRegistryTargets(n int) []ScrapeTarget {
 	return targets
 }
 
+func TestK8sSidecarScrapeTargetURL(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		target  ScrapeTarget
+		wantURL string
+	}{
+		{"dns", ScrapeTarget{Scheme: "http", Address: "metrics", Port: 9090, Path: "/metrics"}, "http://metrics:9090/metrics"},
+		{"ipv4", ScrapeTarget{Scheme: "http", Address: "10.0.0.8", Port: 9100, Path: "/stats"}, "http://10.0.0.8:9100/stats"},
+		{"ipv6", ScrapeTarget{Scheme: "http", Address: "fd00::10", Port: 9090, Path: "/metrics"}, "http://[fd00::10]:9090/metrics"},
+		{"bracketed_ipv6", ScrapeTarget{Scheme: "https", Address: "[2001:db8::5]", Port: 9443, Path: "/metrics"}, "https://[2001:db8::5]:9443/metrics"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sidecarScrapeTargetURL(tc.target); got != tc.wantURL {
+				t.Fatalf("scrape URL = %q, want %q", got, tc.wantURL)
+			}
+		})
+	}
+}
+
 func TestK8sSidecarTargetRegistryFirstWinsAndOrder(t *testing.T) {
 	for _, size := range []int{1, 16, 32, 33, 64, 1024} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
