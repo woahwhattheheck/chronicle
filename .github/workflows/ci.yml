@@ -1,185 +1,107 @@
-name: CI
-
-on:
+name: Native Windows CQ registration evidence
+'on':
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
+    branches:
+      - validation/chronicle104-cq-cd79
+    paths:
+      - .github/workflows/ci.yml
+permissions:
+  contents: read
+concurrency:
+  group: chronicle104-cq-cd79
+  cancel-in-progress: false
 jobs:
-  test:
-    name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.24']
-    
+  cq-before-after:
+    if: github.repository == 'woahwhattheheck/chronicle'
+    runs-on: windows-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        shell: python
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      GOPROXY: 'off'
+      PYTHONIOENCODING: utf-8
+      BASE_SHA: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+      CANDIDATE_SHA: 03d145b67a9743e064d633ccc902955b96f3d4b7
     steps:
-      - name: Checkout code
+      - name: Check out retained baseline
         uses: actions/checkout@v4
-
-      - name: Set up Go
+        with:
+          ref: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+          path: before
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 03d145b67a9743e064d633ccc902955b96f3d4b7
+          path: after
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up retained Go version
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
-          cache: true
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test (short - fast feedback)
-        run: go test -short -count=1 ./...
-
-      - name: Test with race detector and coverage
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-        if: matrix.os == 'ubuntu-latest'
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          file: ./coverage.out
-          fail_ci_if_error: false
-
-      - name: Check coverage threshold
-        if: matrix.os == 'ubuntu-latest'
+          go-version: '1.24.13'
+          cache: false
+      - name: Run focused native before and after
         run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
-          echo "Total coverage: ${COVERAGE}%"
-          THRESHOLD=70
-          if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" -eq 1 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
-            exit 1
-          fi
-
-      - name: Check per-package coverage minimums
-        if: matrix.os == 'ubuntu-latest'
-        run: ./scripts/check-coverage.sh coverage.out || echo "::warning::Some packages below coverage minimum"
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-
-      - name: Check for large files (warning)
-        run: make check-file-size
-        continue-on-error: true
-
-  benchmark:
-    name: Benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Run benchmarks
-        run: go test -bench=. -benchmem -count=3 -short -run=^$ ./... | tee benchmark-results.txt
-
-      - name: Upload benchmark results
+          import hashlib, json, os, platform, subprocess, sys
+          from pathlib import Path
+          assert sys.platform == "win32"
+          evidence = Path("evidence")
+          evidence.mkdir()
+          paths = ["internal/continuousquery/continuous_query_engine.go", "internal/continuousquery/types.go", "internal/continuousquery/continuous_query_test.go"]
+          before, after = Path("before"), Path("after")
+          provenance = {"platform": platform.platform(), "machine": platform.machine(), "before": os.environ["BASE_SHA"], "after": os.environ["CANDIDATE_SHA"]}
+          provenance["go_version"] = subprocess.check_output(["go", "version"], text=True).strip()
+          provenance["go_env"] = json.loads(subprocess.check_output(["go", "env", "-json", "GOOS", "GOARCH", "GOHOSTOS", "CGO_ENABLED", "GOVERSION", "GOTOOLCHAIN", "GOPROXY"], text=True, cwd=after))
+          assert provenance["go_env"]["GOOS"] == provenance["go_env"]["GOHOSTOS"] == "windows"
+          assert provenance["go_env"]["CGO_ENABLED"] == "0"
+          for label, root, expected in [("before", before, os.environ["BASE_SHA"]), ("after", after, os.environ["CANDIDATE_SHA"])]:
+              actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, cwd=root).strip()
+              assert actual == expected
+              provenance[label + "_blobs"] = subprocess.check_output(["git", "ls-files", "-s", *paths], text=True, cwd=root)
+          formatted = subprocess.check_output(["gofmt", "-l", *paths], text=True, cwd=after)
+          assert not formatted.strip(), "Candidate needs gofmt:\n" + formatted
+          test_path = paths[-1]
+          new_tests = (after / test_path).read_bytes()
+          (before / test_path).write_bytes(new_tests)
+          provenance["shared_test_sha256"] = hashlib.sha256(new_tests).hexdigest()
+          provenance["baseline_test_change"] = subprocess.check_output(["git", "diff", "--name-only"], text=True, cwd=before).splitlines()
+          assert provenance["baseline_test_change"] == [test_path]
+          assert subprocess.check_output(["git", "diff", "--name-only"], text=True, cwd=after).strip() == ""
+          (evidence / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+          print(json.dumps(provenance, indent=2), flush=True)
+          names = ["TestContinuousQueryEngine", "TestContinuousQueryEngine_Stats", "TestContinuousQueryEngine_RapidCreatesRetainQueries", "TestContinuousQueryEngine_ConcurrentCreateLimit"]
+          regressions = set(names[2:])
+          command = ["go", "test", "-short", "-count=1", "-timeout=60s", "-json", "-run", "^(" + "|".join(names) + ")$", "./internal/continuousquery"]
+          (evidence / "command.json").write_text(json.dumps(command, indent=2), encoding="utf-8")
+          summaries = {}
+          for label, root in [("before", before), ("after", after)]:
+              print("RUN " + label + ": " + repr(command), flush=True)
+              result = subprocess.run(command, capture_output=True, text=True, cwd=root, timeout=180)
+              (evidence / (label + ".jsonl")).write_text(result.stdout, encoding="utf-8")
+              (evidence / (label + ".stderr.log")).write_text(result.stderr, encoding="utf-8")
+              print(result.stdout, flush=True)
+              print(result.stderr, flush=True)
+              events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+              passed = {e["Test"] for e in events if e.get("Action") == "pass" and "Test" in e}
+              failed = {e["Test"] for e in events if e.get("Action") == "fail" and "Test" in e}
+              package_success = any(e.get("Action") == "pass" and "Test" not in e for e in events)
+              summaries[label] = {"exit_code": result.returncode, "passed": sorted(passed), "failed": sorted(failed), "package_success": package_success}
+          (evidence / "summary.json").write_text(json.dumps(summaries, indent=2), encoding="utf-8")
+          print("SUMMARY", json.dumps(summaries, indent=2), flush=True)
+          assert summaries["before"]["exit_code"] == 1 and regressions.issubset(set(summaries["before"]["failed"])), "Baseline did not reproduce both regressions"
+          assert summaries["after"]["exit_code"] == 0 and not summaries["after"]["failed"] and set(names).issubset(set(summaries["after"]["passed"])) and summaries["after"]["package_success"], "Candidate did not pass all selected tests"
+          assert subprocess.check_output(["git", "diff", "--name-only"], text=True, cwd=after).strip() == ""
+          assert subprocess.check_output(["git", "diff", "--name-only"], text=True, cwd=before).splitlines() == [test_path]
+      - name: Retain focused evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
-          path: benchmark-results.txt
-          retention-days: 30
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      minio:
-        image: minio/minio:latest
-        ports:
-          - 9000:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-        options: >-
-          --health-cmd "mc ready local || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Create MinIO test bucket
-        run: |
-          curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set local http://localhost:9000 minioadmin minioadmin
-          mc mb local/chronicle-test
-
-      - name: Run integration tests
-        env:
-          S3_TEST_ENDPOINT: http://localhost:9000
-          S3_TEST_BUCKET: chronicle-test
-        run: go test -tags integration -count=1 -timeout 300s ./...
-
-  vuln:
-    name: Vulnerability Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Run govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-
-  fuzz:
-    name: Fuzz Seed Corpus
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Run fuzz tests (seed corpus only)
-        run: go test -fuzz=. -fuzztime=10s ./...
+          name: chronicle104-cq-cd79
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
