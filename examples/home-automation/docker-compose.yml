@@ -1,9 +1,0 @@
-# Local broker for the default MQTT collector mode.
-services:
-  mosquitto:
-    image: eclipse-mosquitto:2.0.20
-    ports:
-      - "127.0.0.1:1883:1883"
-      - "127.0.0.1:9001:9001"
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro

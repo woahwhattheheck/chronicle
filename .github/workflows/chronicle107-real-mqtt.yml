@@ -1,0 +1,90 @@
+name: Chronicle107 real MQTT delivery
+on:
+  push:
+    branches: [rivet31b8/chronicle107-mqtt-delivery]
+permissions:
+  contents: read
+concurrency:
+  group: rivet31b8-chronicle107-mqtt-delivery
+  cancel-in-progress: true
+jobs:
+  mqtt-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_SHA: 271d0c94be180e501d0c48d462e6cbc9867c62a0
+      GOMAXPROCS: '2'
+      GOGC: '50'
+      GOFLAGS: -p=2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: runner
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: product
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache-dependency-path: product/examples/home-automation/go.sum
+      - name: Record source and runner identity
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/results"
+          {
+            git -C product rev-parse HEAD
+            go version
+            uname -a
+            docker version
+            docker compose version
+          } | tee results/environment.txt
+          test "$(git -C product rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Build existing collector
+        working-directory: product/examples/home-automation
+        run: go build -o home-automation .
+      - name: Existing example checks only
+        id: example_checks
+        continue-on-error: true
+        working-directory: product/examples/home-automation
+        run: |
+          set -o pipefail
+          go test -race -count=1 -json ./... | tee "$GITHUB_WORKSPACE/results/example-tests.jsonl"
+          go vet ./...
+      - name: Start real local broker
+        working-directory: product/examples/home-automation
+        run: |
+          docker compose up -d mosquitto
+          docker compose exec -T mosquitto mosquitto_pub --help | head -10 || true
+          docker inspect "$(docker compose ps -q mosquitto)" --format '{{.Image}}' | tee "$GITHUB_WORKSPACE/results/broker-image.txt"
+      - name: MQTT transport, concurrent queries, reconnect and durable restart
+        id: delivery
+        continue-on-error: true
+        working-directory: product/examples/home-automation
+        env:
+          DELIVERY_OUT: ${{ github.workspace }}/results
+        run: |
+          set -o pipefail
+          python3 "$GITHUB_WORKSPACE/runner/mqtt_delivery.py" | tee "$GITHUB_WORKSPACE/results/delivery.log"
+      - name: Stop local fixture
+        if: always()
+        working-directory: product/examples/home-automation
+        run: |
+          docker compose logs --no-color > "$GITHUB_WORKSPACE/results/broker.log" 2>&1 || true
+          docker compose down || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chronicle107-real-mqtt-rivet31b8
+          path: results/
+          retention-days: 14
+      - name: Require real execution and example checks
+        if: always()
+        env:
+          CHECKS: ${{ steps.example_checks.outcome }}
+          DELIVERY: ${{ steps.delivery.outcome }}
+        run: |
+          echo "example_checks=$CHECKS delivery=$DELIVERY"
+          test "$CHECKS" = success
+          test "$DELIVERY" = success
