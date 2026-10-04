@@ -365,10 +365,18 @@ func (s *K8sSidecar) scrapeAll() {
 	wg.Wait()
 }
 
+func sidecarScrapeTargetURL(target ScrapeTarget) string {
+	address := target.Address
+	if len(address) >= 2 && address[0] == '[' && address[len(address)-1] == ']' {
+		address = address[1 : len(address)-1]
+	}
+	return fmt.Sprintf("%s://%s%s", target.Scheme, net.JoinHostPort(address, strconv.Itoa(target.Port)), target.Path)
+}
+
 func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 	start := time.Now()
 
-	url := fmt.Sprintf("%s://%s:%d%s", target.Scheme, target.Address, target.Port, target.Path)
+	url := sidecarScrapeTargetURL(target)
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.config.ScrapeTimeout)
 	defer cancel()
