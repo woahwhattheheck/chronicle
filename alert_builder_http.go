@@ -9,11 +9,25 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
+var alertIDSequence atomic.Int64
+
 func generateAlertID() string {
-	return fmt.Sprintf("alert-%d", time.Now().UnixNano())
+	// Rules and triggers share this allocator. Clock resolution or rollback
+	// must not cause a new record to overwrite one created earlier.
+	for {
+		previous := alertIDSequence.Load()
+		next := time.Now().UnixNano()
+		if next <= previous {
+			next = previous + 1
+		}
+		if alertIDSequence.CompareAndSwap(previous, next) {
+			return fmt.Sprintf("alert-%d", next)
+		}
+	}
 }
 
 // ExportRules exports rules as JSON.
