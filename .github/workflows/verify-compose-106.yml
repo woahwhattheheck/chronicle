@@ -166,7 +166,7 @@ jobs:
         wait_json("target-down-observed", query("http://127.0.0.1:9090", 'up{job="chronicle"}'), lambda v: has_value(v, lambda x: x == 0))
         wait_json("prometheus-alert-firing", "http://127.0.0.1:9090/api/v1/alerts", lambda v: any(a.get("labels", {}).get("alertname") == "ChronicleTargetDown" and a.get("state") == "firing" for a in v.get("data", {}).get("alerts", [])), timeout=150)
         wait_json("alertmanager-received-alert", "http://127.0.0.1:9093/api/v2/alerts", lambda v: isinstance(v, list) and any(a.get("labels", {}).get("alertname") == "ChronicleTargetDown" and a.get("status", {}).get("state") == "active" and any(r.get("name") == "local-ui" for r in a.get("receivers", [])) for a in v), timeout=90)
-        compose("start", "--wait", "--wait-timeout", "90", "chronicle")
+        compose("start", "chronicle")
         wait_http("chronicle-health-after-restart", "http://127.0.0.1:8086/health")
         after = wait_json("persistence-after-restart", probe_query, lambda v: has_value(v, lambda x: x == 47.5))
         assert sorted((x["metric"]["source"], x["value"]) for x in series(before)) == sorted((x["metric"]["source"], x["value"]) for x in series(after)), "Sentinel timestamp/value changed across restart"
