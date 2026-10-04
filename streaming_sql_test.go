@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -284,5 +285,141 @@ func TestDefaultStreamingSQLConfig(t *testing.T) {
 	}
 	if config.MaxConcurrentQueries != 100 {
 		t.Errorf("expected MaxConcurrentQueries 100, got %d", config.MaxConcurrentQueries)
+	}
+}
+
+func TestStreamingSQLEngine_RapidCreatesRetainQueries(t *testing.T) {
+	const count = 64
+	db := &DB{}
+	streamConfig := DefaultStreamConfig()
+	streamConfig.BufferSize = 1
+	hub := NewStreamHub(db, streamConfig)
+	config := DefaultStreamingSQLConfig()
+	config.MaxConcurrentQueries = count
+	config.BufferSize = 1
+	engine := NewStreamingSQLEngine(db, hub, config)
+	var accepted []*StreamingQuery
+	defer func() {
+		engine.Stop()
+		for _, query := range accepted {
+			for range query.Results {
+			}
+		}
+	}()
+
+	const sql = "SELECT * FROM metrics"
+	parsed, err := engine.ParseSQL(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[string]bool, count)
+	for i := 0; i < count; i++ {
+		query, err := engine.Execute(parsed, sql)
+		if err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+		accepted = append(accepted, query)
+		if seen[query.ID] {
+			t.Fatalf("create %d reused accepted query ID %q", i, query.ID)
+		}
+		seen[query.ID] = true
+	}
+	if got := len(engine.ListQueries()); got != count {
+		t.Fatalf("listed %d queries, want %d", got, count)
+	}
+	if got := engine.GetStats().ActiveQueries; got != count {
+		t.Fatalf("active queries = %d, want %d", got, count)
+	}
+	for _, query := range accepted {
+		if got, ok := engine.GetQuery(query.ID); !ok || got != query {
+			t.Fatalf("accepted query %q was not retained", query.ID)
+		}
+		if err := engine.StopQuery(query.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := len(engine.ListQueries()); got != 0 {
+		t.Fatalf("listed %d queries after stopping all", got)
+	}
+	replacement, err := engine.Execute(parsed, sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accepted = append(accepted, replacement)
+	if seen[replacement.ID] {
+		t.Fatalf("replacement reused stopped query ID %q", replacement.ID)
+	}
+	if err := engine.StopQuery(accepted[0].ID); err == nil {
+		t.Fatal("stale query ID unexpectedly stopped a replacement")
+	}
+	if got, ok := engine.GetQuery(replacement.ID); !ok || got != replacement {
+		t.Fatal("replacement was not retained after stale stop")
+	}
+}
+
+func TestStreamingSQLEngine_ConcurrentAdmission(t *testing.T) {
+	const attempts = 32
+	for _, limit := range []int{1, 4} {
+		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+			db := &DB{}
+			streamConfig := DefaultStreamConfig()
+			streamConfig.BufferSize = 1
+			hub := NewStreamHub(db, streamConfig)
+			config := DefaultStreamingSQLConfig()
+			config.MaxConcurrentQueries = limit
+			config.BufferSize = 1
+			engine := NewStreamingSQLEngine(db, hub, config)
+			var accepted []*StreamingQuery
+			defer func() {
+				engine.Stop()
+				for _, query := range accepted {
+					for range query.Results {
+					}
+				}
+			}()
+			const sql = "SELECT * FROM metrics"
+			parsed, err := engine.ParseSQL(sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			type outcome struct {
+				query *StreamingQuery
+				err   error
+			}
+			start := make(chan struct{})
+			outcomes := make(chan outcome, attempts)
+			for i := 0; i < attempts; i++ {
+				go func() {
+					<-start
+					query, err := engine.Execute(parsed, sql)
+					outcomes <- outcome{query, err}
+				}()
+			}
+			close(start)
+			for i := 0; i < attempts; i++ {
+				result := <-outcomes
+				if result.query != nil {
+					accepted = append(accepted, result.query)
+				}
+				if result.err != nil {
+					if result.query != nil || result.err.Error() != "max concurrent queries reached" {
+						t.Errorf("rejected query present=%t, error=%v", result.query != nil, result.err)
+					}
+				} else if result.query == nil {
+					t.Error("accepted nil query")
+				}
+			}
+			if len(accepted) != limit {
+				t.Errorf("accepted %d queries, limit %d", len(accepted), limit)
+			}
+			if got := engine.GetStats().ActiveQueries; got != limit {
+				t.Errorf("active queries = %d, want %d", got, limit)
+			}
+			for _, query := range accepted {
+				if got, ok := engine.GetQuery(query.ID); !ok || got != query {
+					t.Errorf("accepted query %q was not retained", query.ID)
+				}
+			}
+		})
 	}
 }

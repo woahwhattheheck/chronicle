@@ -50,9 +50,10 @@ type StreamingSQLEngine struct {
 	hub    *StreamHub
 	mu     sync.RWMutex
 
-	// Active streaming queries
-	queries map[string]*StreamingQuery
-	queryMu sync.RWMutex
+	// Active streaming queries and their ID sequence, guarded by queryMu.
+	queries       map[string]*StreamingQuery
+	queryMu       sync.RWMutex
+	querySequence uint64
 
 	// State store for aggregations
 	stateStore *StateStore
@@ -351,21 +352,21 @@ func (e *StreamingSQLEngine) Execute(parsed *ParsedStreamingSQL, originalSQL str
 		e.queryMu.Unlock()
 		return nil, errors.New("max concurrent queries reached")
 	}
-	e.queryMu.Unlock()
 
 	ctx, cancel := context.WithCancel(e.ctx)
+	created := time.Now()
+	e.querySequence++
 
 	query := &StreamingQuery{
-		ID:      fmt.Sprintf("ssql-%d", time.Now().UnixNano()),
+		ID:      fmt.Sprintf("ssql-%d-%d", created.UnixNano(), e.querySequence),
 		SQL:     originalSQL,
 		Parsed:  parsed,
 		State:   StreamingQueryStateCreated,
-		Created: time.Now(),
+		Created: created,
 		Results: make(chan *StreamingResult, e.config.BufferSize),
 		cancel:  cancel,
 	}
 
-	e.queryMu.Lock()
 	e.queries[query.ID] = query
 	e.queryMu.Unlock()
 
