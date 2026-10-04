@@ -491,13 +491,14 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 	return point, nil
 }
 
+var sidecarLabelRegex = regexp.MustCompile(`(\w+)="([^"]*)"`)
+
 func (s *K8sSidecar) parseLabels(labelStr string) map[string]string {
 	labels := make(map[string]string)
 
 	// Simple label parser
 	// Format: key="value",key2="value2"
-	labelRegex := regexp.MustCompile(`(\w+)="([^"]*)"`)
-	matches := labelRegex.FindAllStringSubmatch(labelStr, -1)
+	matches := sidecarLabelRegex.FindAllStringSubmatch(labelStr, -1)
 
 	for _, match := range matches {
 		if len(match) == 3 {
