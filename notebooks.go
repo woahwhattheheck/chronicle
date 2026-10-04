@@ -96,7 +96,14 @@ func (ne *NotebookEngine) CreateNotebook(nb Notebook) (*Notebook, error) {
 		return nil, fmt.Errorf("max notebooks reached (%d)", ne.config.MaxNotebooks)
 	}
 	if nb.ID == "" {
-		nb.ID = fmt.Sprintf("nb-%d", time.Now().UnixNano())
+		// A coarse clock can return the same timestamp for consecutive creates.
+		// Probe under the existing lock instead of overwriting a live notebook.
+		for candidate := time.Now().UnixNano(); ; candidate++ {
+			nb.ID = fmt.Sprintf("nb-%d", candidate)
+			if _, exists := ne.notebooks[nb.ID]; !exists {
+				break
+			}
+		}
 	}
 	if nb.Title == "" {
 		nb.Title = "Untitled Notebook"
@@ -156,7 +163,17 @@ func (ne *NotebookEngine) AddCell(notebookID string, cell NotebookCell) error {
 		return fmt.Errorf("max cells reached (%d)", ne.config.MaxCells)
 	}
 	if cell.ID == "" {
-		cell.ID = fmt.Sprintf("cell-%d", time.Now().UnixNano())
+		// Imported cells may already occupy an automatically generated ID.
+		existingIDs := make(map[string]struct{}, len(nb.Cells))
+		for _, existing := range nb.Cells {
+			existingIDs[existing.ID] = struct{}{}
+		}
+		for candidate := time.Now().UnixNano(); ; candidate++ {
+			cell.ID = fmt.Sprintf("cell-%d", candidate)
+			if _, exists := existingIDs[cell.ID]; !exists {
+				break
+			}
+		}
 	}
 	nb.Cells = append(nb.Cells, cell)
 	nb.UpdatedAt = time.Now()

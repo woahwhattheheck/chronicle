@@ -305,7 +305,15 @@ func (d *ChronicleOTelDistro) PushMetrics(metrics *Metrics) {
 	pipeline, ok := d.pipelines["metrics"]
 	d.mu.RUnlock()
 
-	if !ok || !pipeline.running {
+	if !ok {
+		return
+	}
+
+	// stopPipeline closes dataChan under this same lock. Keep the running
+	// check and nonblocking send in one admission interval with shutdown.
+	pipeline.mu.Lock()
+	defer pipeline.mu.Unlock()
+	if !pipeline.running {
 		return
 	}
 
