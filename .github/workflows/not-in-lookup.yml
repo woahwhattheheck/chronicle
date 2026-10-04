@@ -1,16 +1,18 @@
-name: NOT IN lookup paired benchmark
+name: NOT IN lookup current-head validation
 on:
   push:
-    branches: [gf-payload/notin-lookup-20261004]
+    branches:
+      - gf-payload/notin-lookup-20261004
 permissions:
   contents: read
 concurrency:
-  group: notin-lookup-${{ github.ref }}
-  cancel-in-progress: false
+  group: notin-lookup-current-head
+  cancel-in-progress: true
+
 jobs:
-  paired:
+  focused:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     env:
       GOTOOLCHAIN: local
       GOMAXPROCS: '2'
@@ -18,44 +20,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: sol56/chronicle103-notin-lookup-20261004
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24.13'
           cache: true
-      - name: Compare the original and lookup implementation
-        shell: bash
+      - name: Verify source pin
         run: |
           set -euo pipefail
-          out="$RUNNER_TEMP/notin-lookup"
-          mkdir -p "$out"
-          git rev-parse HEAD > "$out/control-sha.txt"
-          printf '%s\n' '9b4578466d12a2dc8739210f845d4070504a77e4' > "$out/baseline-source-sha.txt"
-          go version > "$out/environment.txt"
-          go env GOOS GOARCH CGO_ENABLED GOFLAGS >> "$out/environment.txt"
-          test "$(git hash-object query.go)" = b2de469c54f1210f5cc40b3fe924b8116699a454
-          test "$(git hash-object tags.go)" = cda435899a7b385f6db0a15a2835329d3640f0fa
-          test "$(git hash-object partition_query.go)" = af9d261fc54dbbb394a5f7576a375e38d7b87b3e
-          test "$(git hash-object tag_not_in_lookup_test.go)" = db1e1d4473bb059559e542df25afb236e679e6a0
-          cp tag_not_in_lookup_test.go "$out/"
-          cp work/not-in-lookup/source.patch "$out/"
-          printf '%s\n' 'Prior successful original selection and parser run: 37200181673. Baseline repeats only the Execute caller-immutability assertion and paired benchmarks.' > "$out/prior-validation.txt"
-          selection='^(TestTagNotInLookup|TestTagOpNotIn|TestParseNotIn|TestTagMembershipPresence|TestPredicatePushDown)'
-          printf '%s\n' "baseline: go test -count=1 -run '^TestTagNotInLookupExecute$' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms ." "candidate: go test -count=1 -v -run '$selection' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms ." > "$out/command.txt"
-          go test -count=1 -run '^TestTagNotInLookupExecute$' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/baseline.log"
-          git apply --check work/not-in-lookup/source.patch
-          git apply work/not-in-lookup/source.patch
-          test "$(git hash-object query.go)" = 1ec9c5c30f6a431ce1efb90c5c95606cdc12d456
-          test "$(git hash-object tags.go)" = 17b7543641da1e25dd662ae8a57befdeb5005178
-          test "$(git hash-object partition_query.go)" = 13f6724f38b7e4efedb86c0763e8102888fdecdb
+          test "$(git rev-parse HEAD)" = "502c8e54b085897761b38f83c4b8b64eea3da873"
           test -z "$(gofmt -l query.go tags.go partition_query.go tag_not_in_lookup_test.go)"
-          go test -count=1 -v -run "$selection" -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/candidate.log"
-          cp query.go tags.go partition_query.go "$out/"
-          (cd "$out" && sha256sum *.go *.log *.txt source.patch > SHA256SUMS)
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: notin-lookup-paired
-          path: ${{ runner.temp }}/notin-lookup
-          if-no-files-found: error
-          retention-days: 14
+      - name: Focused correctness
+        run: |
+          set -euo pipefail
+          go test -count=1 -run '^(TestNotInLookup|TestTagOpNotIn|TestParseNotIn|TestTagMembershipPresence|TestPredicatePushDown)' .
+          go test -count=1 ./internal/query/
+      - name: Focused performance
+        run: |
+          set -euo pipefail
+          go test -run '^$' -bench '^BenchmarkNotIn(Lookup4096|PrepareAndMatch4096)$' -benchmem -benchtime=300ms -count=3 .
