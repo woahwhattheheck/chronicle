@@ -14,10 +14,26 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync/atomic"
 	"time"
 )
 
 // Batch splitting, delta encoding, conflict resolution, queue management, and checkpoint logic for delta sync.
+
+var deltaSyncBatchIDSequence atomic.Int64
+
+func nextDeltaSyncBatchID(deviceID string) string {
+	for {
+		previous := deltaSyncBatchIDSequence.Load()
+		next := time.Now().UnixNano()
+		if next <= previous {
+			next = previous + 1
+		}
+		if deltaSyncBatchIDSequence.CompareAndSwap(previous, next) {
+			return fmt.Sprintf("%s-%d", deviceID, next)
+		}
+	}
+}
 
 func (m *DeltaSyncManager) splitIntoBatches(points []Point) []DeltaBatch {
 	var batches []DeltaBatch
@@ -34,7 +50,7 @@ func (m *DeltaSyncManager) splitIntoBatches(points []Point) []DeltaBatch {
 		m.vectorClock.Increment(m.config.DeviceID)
 
 		batch := DeltaBatch{
-			ID:          fmt.Sprintf("%s-%d", m.config.DeviceID, time.Now().UnixNano()),
+			ID:          nextDeltaSyncBatchID(m.config.DeviceID),
 			DeviceID:    m.config.DeviceID,
 			Timestamp:   time.Now().UnixNano(),
 			Points:      batchPoints,
@@ -151,9 +167,9 @@ func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
 		ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 			m.config.CloudEndpoint+"/api/v1/delta/push", bytes.NewReader(payload))
-		cancel()
 
 		if err != nil {
+			cancel()
 			lastErr = err
 			continue
 		}
@@ -168,6 +184,7 @@ func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
 
 		resp, err := m.client.Do(req)
 		if err != nil {
+			cancel()
 			lastErr = err
 			select {
 			case <-time.After(backoff):
@@ -181,6 +198,7 @@ func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
 			continue
 		}
 		resp.Body.Close()
+		cancel()
 
 		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
 			// Success - update checkpoint
@@ -373,10 +391,12 @@ func (m *DeltaSyncManager) syncOfflineQueue() {
 	m.queue.sizeBytes = 0
 	m.queue.mu.Unlock()
 
-	for _, batch := range items {
+	for i, batch := range items {
 		if err := m.sendBatch(batch); err != nil {
-			// Re-queue failed batch
-			m.queueBatch(batch)
+			// Keep the failed batch and every batch not yet attempted.
+			for _, pending := range items[i:] {
+				m.queueBatch(pending)
+			}
 			return
 		}
 	}
