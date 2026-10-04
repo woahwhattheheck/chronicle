@@ -212,6 +212,8 @@ type RaftNode struct {
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
 	running   atomic.Bool
+	stopOnce  sync.Once
+	stopErr   error
 	stateMu   sync.RWMutex
 	applyCh   chan *RaftLogEntry
 	listeners []RaftEventListener
@@ -320,6 +322,7 @@ func NewRaftNode(store StorageEngine, config RaftConfig) (*RaftNode, error) {
 	}
 
 	if err := rn.loadState(); err != nil {
+		_ = log.Close()
 		cancel()
 		return nil, fmt.Errorf("failed to load state: %w", err)
 	}
@@ -329,6 +332,9 @@ func NewRaftNode(store StorageEngine, config RaftConfig) (*RaftNode, error) {
 
 // Start begins Raft operations.
 func (rn *RaftNode) Start() error {
+	if rn.ctx.Err() != nil {
+		return errors.New("raft node has been stopped")
+	}
 	if rn.running.Load() {
 		return errors.New("raft node already running")
 	}
@@ -379,10 +385,19 @@ func (rn *RaftNode) Start() error {
 	return nil
 }
 
-// Stop stops Raft operations.
+// Stop releases node resources, including a log opened before Start.
+// A stopped node cannot be restarted; create a new node to reopen persisted state.
 func (rn *RaftNode) Stop() error {
+	rn.stopOnce.Do(func() {
+		rn.stopErr = rn.stop()
+	})
+	return rn.stopErr
+}
+
+func (rn *RaftNode) stop() error {
 	if !rn.running.Load() {
-		return nil
+		rn.cancel()
+		return rn.log.Close()
 	}
 	rn.running.Store(false)
 	rn.cancel()
