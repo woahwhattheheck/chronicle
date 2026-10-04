@@ -64,3 +64,57 @@ func TestParseNotInOperator(t *testing.T) {
 		t.Fatal("TagOpNotIn must not share iota value with TagOpRegex")
 	}
 }
+
+func TestTagMembershipPresence(t *testing.T) {
+	matchers := []struct {
+		name  string
+		match func(map[string]string, []TagFilter) bool
+	}{
+		{"series", matchSeriesTagFilters},
+		{"partition", matchesTagFilters},
+	}
+	tagCases := []struct {
+		name string
+		tags map[string]string
+	}{
+		{"nil_tags", nil},
+		{"empty_tags", map[string]string{}},
+		{"unrelated_tag", map[string]string{"env": "prod"}},
+		{"present_empty", map[string]string{"host": ""}},
+		{"present_a", map[string]string{"host": "a"}},
+		{"present_b", map[string]string{"host": "b"}},
+	}
+	sets := []struct {
+		name   string
+		values []string
+	}{
+		{"nil_set", nil},
+		{"empty_set", []string{}},
+		{"empty_value", []string{""}},
+		{"named_value", []string{"a"}},
+		{"mixed_values", []string{"", "a"}},
+		{"repeated_values", []string{"", "a", "a"}},
+	}
+	for _, matcher := range matchers {
+		for _, tags := range tagCases {
+			for _, set := range sets {
+				t.Run(matcher.name+"/"+tags.name+"/"+set.name, func(t *testing.T) {
+					value, present := tags.tags["host"]
+					member := false
+					for _, candidate := range set.values {
+						member = member || (present && value == candidate)
+					}
+					in := TagFilter{Key: "host", Op: TagOpIn, Values: set.values}
+					notIn := TagFilter{Key: "host", Op: TagOpNotIn, Values: set.values}
+					filters := [][]TagFilter{{in}, {notIn}, {in, notIn}, {notIn, in}}
+					wants := []bool{member, !member, false, false}
+					for i, filter := range filters {
+						if got := matcher.match(tags.tags, filter); got != wants[i] {
+							t.Errorf("filter %d: got %v, want %v", i, got, wants[i])
+						}
+					}
+				})
+			}
+		}
+	}
+}
