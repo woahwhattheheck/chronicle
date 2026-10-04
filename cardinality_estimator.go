@@ -400,6 +400,20 @@ func (ce *CardinalityEstimator) CollectFromPartition(partition *Partition) {
 	}
 }
 
+// distinctTagFilterValueCount returns the number of distinct values in a
+// membership filter. IN and NOT IN use set semantics, so repeated literals
+// must not change selectivity estimates.
+func distinctTagFilterValueCount(values []string) int {
+	if len(values) < 2 {
+		return len(values)
+	}
+	unique := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		unique[value] = struct{}{}
+	}
+	return len(unique)
+}
+
 // EstimateCardinality returns estimated row count for a query.
 func (ce *CardinalityEstimator) EstimateCardinality(q *Query) int64 {
 	if q == nil || q.Metric == "" {
@@ -465,7 +479,7 @@ func (ce *CardinalityEstimator) EstimateCardinality(q *Query) int64 {
 			}
 			estimate *= sel
 		case TagOpNotIn:
-			sel := 1.0 - (float64(len(tf.Values)) / float64(card))
+			sel := 1.0 - (float64(distinctTagFilterValueCount(tf.Values)) / float64(card))
 			if sel < 0.0 {
 				sel = 0.0
 			}
