@@ -22,7 +22,7 @@ jobs:
       CI: 'true'
       COMPOSE_PROJECT_NAME: chronicle106-rivet
       COMPOSE_PARALLEL_LIMIT: '2'
-      SOURCE_SHA: f5ceec497293239913b7be86f9a1ec9a83f4f7f6
+      SOURCE_SHA: a991190eef51d555c1bcaa4dacc960256797120e
     steps:
     - name: Check out exact submitted source
       uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
 
 
         def request(url: str, *, data: bytes | None = None, grafana: bool = False) -> bytes:
-            headers = {"Content-Type": "text/plain"} if data is not None else {}
+            headers = {"Content-Type": "text/plain", "X-Requested-With": "XMLHttpRequest"} if data is not None else {}
             if grafana:
                 # These are the maintained example's public demo credentials, not an account secret.
                 headers["Authorization"] = "Basic " + base64.b64encode(b"admin:chronicle").decode()
