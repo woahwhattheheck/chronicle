@@ -21,7 +21,8 @@ jobs:
     env:
       CI: 'true'
       CGO_ENABLED: '0'
-      SOURCE_SHA: d539d1f6b9ed731fa39d5bb5403c3ea490064e54
+      SOURCE_SHA: 006bc101c1f2079b04696dfc497f5587328fcc46
+      PROBE_COMMIT: 4ca19243e8d0244e76a7d825317e1bce42002adf
       PYTHONIOENCODING: utf-8
     steps:
     - name: Check out exact submitted source
@@ -35,17 +36,18 @@ jobs:
       with:
         go-version: '1.24'
         cache: false
-    - name: Record native runtime and add acceptance probes
+    - name: Record native runtime and unchanged acceptance probes
       run: |
         import hashlib, json, os, platform, subprocess, sys
         from pathlib import Path
+        from urllib.request import urlopen
         assert sys.platform == "win32", "This job must execute on Windows, not cross-compile"
         evidence = Path("evidence")
         evidence.mkdir()
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         assert head == os.environ["SOURCE_SHA"]
-        record = {"source_commit": head, "platform": platform.platform(), "machine": platform.machine(), "python": sys.version}
-        for name, command in {"go-version": ["go", "version"], "go-env": ["go", "env", "-json", "GOOS", "GOARCH", "GOHOSTOS", "GOHOSTARCH", "CGO_ENABLED", "GOVERSION", "GOTOOLCHAIN"], "os-version": ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,OSArchitecture | ConvertTo-Json"], "source-blobs": ["git", "ls-files", "-s", "disk_usage_windows.go", "health_check.go", "health_check_test.go", "db_test.go", "go.mod", "go.sum"]}.items():
+        record = {"source_commit": head, "platform": platform.platform(), "machine": platform.machine(), "python": sys.version, "probe_commit": os.environ["PROBE_COMMIT"]}
+        for name, command in {"go-version": ["go", "version"], "go-env": ["go", "env", "-json", "GOOS", "GOARCH", "GOHOSTOS", "GOHOSTARCH", "CGO_ENABLED", "GOVERSION", "GOTOOLCHAIN"], "os-version": ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,OSArchitecture | ConvertTo-Json"], "source-blobs": ["git", "ls-files", "-s", "disk_usage_windows.go", "health_check.go", "health_check_test.go", "db_test.go", "wal.go", "wal_truncate_windows.go", "wal_truncate_other.go", "wal_reset_windows_test.go", "go.mod", "go.sum"]}.items():
             value = subprocess.check_output(command, text=True)
             (evidence / (name + ".txt")).write_text(value, encoding="utf-8")
             print(name + ":", value)
@@ -53,38 +55,45 @@ jobs:
                 env = json.loads(value)
                 assert env["GOOS"] == env["GOHOSTOS"] == "windows"
                 assert env["CGO_ENABLED"] == "0"
+        url = "https://raw.githubusercontent.com/woahwhattheheck/chronicle/" + os.environ["PROBE_COMMIT"] + "/validation/native_windows_probe_test.go"
+        with urlopen(url, timeout=60) as response:
+            probe = response.read()
+        digest = hashlib.sha256(probe).hexdigest()
+        assert digest == "349c75126aecf5a6dd9407bfe8e72be106b6ae214c1cb24979dc75725dbdebbb", "Acceptance probe differs from original failing execution"
+        Path("zz_native_windows_acceptance_rivet_test.go").write_bytes(probe)
+        (evidence / "native_windows_probe_test.go").write_bytes(probe)
+        record["probe_sha256"] = digest
         (evidence / "provenance.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
-        probe = '//go:build windows\n\npackage chronicle\n\nimport (\n\t"os"\n\t"path/filepath"\n\t"runtime"\n\t"testing"\n\t"time"\n)\n\n// These additive acceptance probes exercise the actual submitted package.\n// No production or existing test file is replaced in the validation checkout.\nfunc TestNativeWindowsDiskUsageAcceptance(t *testing.T) {\n\tif runtime.GOOS != "windows" {\n\t\tt.Fatal("native Windows execution is required")\n\t}\n\tt.Run("nonexistent_database_in_unicode_parent", func(t *testing.T) {\n\t\tparent := filepath.Join(t.TempDir(), "chronicle-資料")\n\t\tif err := os.Mkdir(parent, 0700); err != nil {\n\t\t\tt.Fatal(err)\n\t\t}\n\t\tfree, total, err := diskUsage(filepath.Join(parent, "not-created.db"))\n\t\tif err != nil || total == 0 || free > total {\n\t\t\tt.Fatalf("diskUsage: free=%d total=%d err=%v", free, total, err)\n\t\t}\n\t\tt.Logf("native GetDiskFreeSpaceEx: free=%d total=%d", free, total)\n\t})\n\tt.Run("relative_parent", func(t *testing.T) {\n\t\tparent, err := os.MkdirTemp(".", ".native-windows-disk-")\n\t\tif err != nil {\n\t\t\tt.Fatal(err)\n\t\t}\n\t\tt.Cleanup(func() { _ = os.RemoveAll(parent) })\n\t\tfree, total, err := diskUsage(filepath.Join(parent, "not-created.db"))\n\t\tif err != nil || total == 0 || free > total {\n\t\t\tt.Fatalf("relative diskUsage: free=%d total=%d err=%v", free, total, err)\n\t\t}\n\t})\n\tt.Run("missing_parent_returns_error", func(t *testing.T) {\n\t\t_, _, err := diskUsage(filepath.Join(t.TempDir(), "not-created", "db"))\n\t\tif err == nil {\n\t\t\tt.Fatal("missing parent unexpectedly succeeded")\n\t\t}\n\t})\n\tt.Run("embedded_nul_returns_error", func(t *testing.T) {\n\t\t_, _, err := diskUsage(filepath.Join(t.TempDir(), "bad\\x00parent", "db"))\n\t\tif err == nil {\n\t\t\tt.Fatal("embedded NUL unexpectedly succeeded")\n\t\t}\n\t})\n}\n\nfunc TestNativeWindowsPersistenceAcceptance(t *testing.T) {\n\tif runtime.GOOS != "windows" {\n\t\tt.Fatal("native Windows execution is required")\n\t}\n\tparent := filepath.Join(t.TempDir(), "chronicle-資料")\n\tif err := os.Mkdir(parent, 0700); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tpath := filepath.Join(parent, "reopen.db")\n\tcfg := DefaultConfig(path)\n\tdb, err := Open(path, cfg)\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\tdefer func() {\n\t\tif db != nil {\n\t\t\t_ = db.Close()\n\t\t}\n\t}()\n\tnow := time.Now().UnixNano()\n\tpoints := []Point{\n\t\t{Metric: "windows_reopen_probe", Tags: map[string]string{"source": "native"}, Timestamp: now, Value: 1.25},\n\t\t{Metric: "windows_reopen_probe", Tags: map[string]string{"source": "native"}, Timestamp: now + 1, Value: 2.5},\n\t}\n\tif err := db.WriteBatch(points); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tif err := db.Flush(); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tif err := db.Close(); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tdb = nil\n\treopened, err := Open(path, cfg)\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\tdefer reopened.Close()\n\tresult, err := reopened.Execute(&Query{Metric: "windows_reopen_probe"})\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\tif len(result.Points) != len(points) {\n\t\tt.Fatalf("got %d persisted points, want %d", len(result.Points), len(points))\n\t}\n\twant := map[int64]float64{now: 1.25, now + 1: 2.5}\n\tfor _, point := range result.Points {\n\t\tvalue, ok := want[point.Timestamp]\n\t\tif !ok || point.Value != value || point.Tags["source"] != "native" {\n\t\t\tt.Fatalf("unexpected persisted point: %+v", point)\n\t\t}\n\t\tdelete(want, point.Timestamp)\n\t}\n\tif len(want) != 0 {\n\t\tt.Fatal("a persisted timestamp is missing")\n\t}\n\tt.Log("two exact timestamp/value/tag records survived native Windows close and reopen")\n}\n'
-        Path("zz_native_windows_acceptance_rivet_test.go").write_bytes(probe.encode("utf-8"))
-        (evidence / "native_windows_probe_test.go").write_bytes(probe.encode("utf-8"))
-        print("Additive probe SHA256:", hashlib.sha256(probe.encode()).hexdigest())
-    - name: Execute existing tests and native acceptance probes
+        print("Unchanged acceptance probe SHA256:", digest)
+    - name: Execute existing tests, reset regression and native probes
       run: |
         import json, os, subprocess
         from pathlib import Path
-        names = ["TestHealthCheckEngine", "TestHealthCheckMemoryAndDisk", "TestHealthCheckHTTPEndpoints", "TestDBWriteAndQuery", "TestDBWriteBatch", "TestNativeWindowsDiskUsageAcceptance", "TestNativeWindowsPersistenceAcceptance"]
+        existing = ["TestHealthCheckEngine", "TestHealthCheckMemoryAndDisk", "TestHealthCheckHTTPEndpoints", "TestDBWriteAndQuery", "TestDBWriteBatch"]
+        regression = ["TestWALResetWindowsPreservesAppend"]
+        probes = ["TestNativeWindowsDiskUsageAcceptance", "TestNativeWindowsPersistenceAcceptance"]
+        names = existing + regression + probes
         command = ["go", "test", "-count=1", "-short", "-p=2", "-timeout=4m", "-json", "-run", "^(" + "|".join(names) + ")$", "."]
         Path("evidence/command.json").write_text(json.dumps(command, indent=2), encoding="utf-8")
         print("Executing:", command, flush=True)
         with open("evidence/go-test.jsonl", "w", encoding="utf-8") as out, open("evidence/go-test-stderr.log", "w", encoding="utf-8") as err:
             result = subprocess.run(command, stdout=out, stderr=err, timeout=720)
         lines = Path("evidence/go-test.jsonl").read_text(encoding="utf-8").splitlines()
-        print("\n".join(lines[-35:]), flush=True)
+        print("\n".join(lines[-45:]), flush=True)
         print(Path("evidence/go-test-stderr.log").read_text(encoding="utf-8"), flush=True)
         Path("evidence/go-test-exit.txt").write_text(str(result.returncode), encoding="utf-8")
         if result.returncode:
             raise SystemExit(result.returncode)
         events = [json.loads(line) for line in lines if line.strip()]
         passed = {e["Test"] for e in events if e.get("Action") == "pass" and "Test" in e}
-        failed = [e for e in events if e.get("Action") == "fail"]
-        assert not failed and set(names).issubset(passed), "Missing named pass or unexpected failure"
+        assert not any(e.get("Action") == "fail" for e in events) and set(names).issubset(passed), "Missing named pass or unexpected failure"
         assert any(e.get("Action") == "pass" and "Test" not in e for e in events), "Missing terminal package success"
-        summary = {"source_commit": os.environ["SOURCE_SHA"], "existing_top_level_tests": names[:5], "additive_native_probes": names[5:], "top_level_passed": len(names), "passed_tests_and_subtests": sorted(passed), "scope": "Native Windows amd64, non-cgo. Actual disk API, focused existing health/write tests and additive close/reopen/path probes. Not the full suite, C FFI, UNC shares, race detector, or maintainer CI."}
+        summary = {"source_commit": os.environ["SOURCE_SHA"], "existing_top_level_tests": existing, "committed_regression_tests": regression, "additive_native_probes": probes, "top_level_passed": len(names), "passed_tests_and_subtests": sorted(passed), "scope": "Native Windows amd64, non-cgo. Actual disk API, focused existing health/write tests, committed WAL reset regression and unchanged close/reopen/path probes. Not the full suite, C FFI, UNC shares, race detector, or maintainer CI."}
         Path("evidence/summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(json.dumps(summary, indent=2), flush=True)
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
-            output.write(f"## Native Windows PR104 evidence\n\nSeven top-level tests passed at `{os.environ['SOURCE_SHA']}`: five existing tests and two additive native acceptance probes.\n\n")
-            output.write("The exact submitted source and existing tests were not rewritten. Scope is non-cgo Windows amd64; full CI, C FFI and UNC shares remain unclaimed.\n")
+            output.write(f"## Native Windows PR104 evidence\n\nEight top-level tests passed at `{os.environ['SOURCE_SHA']}`: five existing tests, the committed WAL reset regression and two unchanged native acceptance probes.\n\n")
+            output.write("No checked-out source or existing test was rewritten by the harness. The persistence probe is byte-identical to the first failing run. Scope is non-cgo Windows amd64; full CI, C FFI and UNC shares remain unclaimed.\n")
     - name: Verify tracked source remained unchanged
       if: always()
       run: |
