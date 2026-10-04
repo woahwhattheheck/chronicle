@@ -29,6 +29,7 @@ func NewRaftLog(path string) (*RaftLog, error) {
 		rl.encoder = gob.NewEncoder(file)
 
 		if err := rl.load(); err != nil {
+			_ = file.Close()
 			return nil, err
 		}
 	}
