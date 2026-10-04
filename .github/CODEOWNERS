@@ -1,9 +1,0 @@
-# Chronicle maintainers
-* @chronicle-db/maintainers
-
-# Documentation
-*.md @chronicle-db/docs-team
-/docs/ @chronicle-db/docs-team
-
-# CI/CD
-/.github/ @chronicle-db/platform-team

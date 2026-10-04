@@ -1,0 +1,39 @@
+name: Sidecar target response lock
+
+on:
+  push:
+    branches: [verify/chronicle105-target-lock-e384-20261004]
+
+permissions:
+  contents: read
+
+jobs:
+  selected-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: woahwhattheheck/chronicle
+          ref: 3bff9d255e45c27f1ad66b0e0571850969c8e8ac
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: false
+      - name: Compare original and candidate selected behavior
+        env:
+          GOTOOLCHAIN: local
+        run: bash run.sh
+      - name: Retain source and complete selected-run receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle105-target-response-lock-e384
+          path: receipt/
+          retention-days: 7
+
