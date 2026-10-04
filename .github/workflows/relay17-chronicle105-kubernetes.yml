@@ -1,0 +1,32 @@
+name: Chronicle 105 Kubernetes acceptance
+
+on:
+  push:
+    branches: [relay17/chronicle105-kubernetes-20261004]
+
+permissions:
+  contents: read
+
+jobs:
+  sidecar-deployment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CHRONICLE_BASELINE_SHA: 87d28f7ee80960f0d70e29e2bb73e47048771771
+      EVIDENCE_DIR: ${{ runner.temp }}/chronicle105-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Build and deploy baseline and candidate
+        shell: bash
+        run: bash work/validation/chronicle105-kubernetes-20261004/run.sh
+      - name: Retain exact source and deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle105-kubernetes-${{ github.run_id }}
+          path: ${{ runner.temp }}/chronicle105-evidence/
+          if-no-files-found: error
+          retention-days: 14

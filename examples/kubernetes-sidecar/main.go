@@ -27,15 +27,16 @@ import (
 )
 
 type options struct {
-	mode           string
-	dataDir        string
-	metricsPort    int
-	metricsPath    string
-	healthPort     int
-	httpPort       int
-	scrapeInterval time.Duration
-	scrapeTimeout  time.Duration
-	retention      time.Duration
+	mode            string
+	dataDir         string
+	metricsPort     int
+	metricsPath     string
+	healthPort      int
+	httpPort        int
+	httpBindAddress string
+	scrapeInterval  time.Duration
+	scrapeTimeout   time.Duration
+	retention       time.Duration
 }
 
 func parseOptions(args []string) (options, error) {
@@ -47,6 +48,7 @@ func parseOptions(args []string) (options, error) {
 	flags.StringVar(&cfg.metricsPath, "metrics-path", "/metrics", "application metrics path")
 	flags.IntVar(&cfg.healthPort, "health-port", 8080, "sidecar health and statistics port")
 	flags.IntVar(&cfg.httpPort, "http-port", 8086, "Chronicle query API port")
+	flags.StringVar(&cfg.httpBindAddress, "http-bind-address", "127.0.0.1", "Chronicle query API listener host or IP address")
 	flags.DurationVar(&cfg.scrapeInterval, "scrape-interval", 2*time.Second, "metrics collection interval")
 	flags.DurationVar(&cfg.scrapeTimeout, "scrape-timeout", 10*time.Second, "timeout for a metrics request")
 	flags.DurationVar(&cfg.retention, "retention", 24*time.Hour, "local metrics retention")
@@ -134,8 +136,11 @@ func run(ctx context.Context, cfg options) (result error) {
 			RetentionDuration: cfg.retention,
 			BufferSize:        5000,
 			SyncInterval:      2 * time.Second,
-			HTTPEnabled:       true,
-			HTTPPort:          cfg.httpPort,
+			HTTP:              chronicle.HTTPConfig{
+				HTTPEnabled:     true,
+				HTTPPort:        cfg.httpPort,
+				HTTPBindAddress: cfg.httpBindAddress,
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("open db: %w", err)
@@ -163,7 +168,11 @@ func run(ctx context.Context, cfg options) (result error) {
 		defer func() { result = errors.Join(result, sidecar.Stop()) }()
 
 		log.Printf("sidecar health/stats: http://127.0.0.1:%d", cfg.healthPort)
-		log.Printf("Chronicle HTTP API: http://127.0.0.1:%d", cfg.httpPort)
+		queryHost := cfg.httpBindAddress
+		if queryHost == "" {
+			queryHost = "127.0.0.1"
+		}
+		log.Printf("Chronicle HTTP API: http://%s", net.JoinHostPort(queryHost, fmt.Sprint(cfg.httpPort)))
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		progress = ticker.C

@@ -109,6 +109,15 @@ curl -fsS http://127.0.0.1:8086/query \
   -H 'Content-Type: application/json' -d '{"metric":"demo_up"}'
 ```
 
+The Deployment explicitly sets `-http-bind-address=0.0.0.0`, allowing the query
+API to accept traffic addressed to the pod through the ClusterIP Service. A
+client in the Deployment's namespace can query that Service directly:
+
+```bash
+curl -fsS http://demo-app-chronicle:8086/query \
+  -H 'Content-Type: application/json' -d '{"metric":"demo_up"}'
+```
+
 The query response contains `points` with `Metric: "demo_up"`, `Value: 1`, and
 `Tags` including `pod`, `namespace`, and `node`. A ready response indicates the
 sidecar is running; increasing write counts and returned points verify successful
@@ -128,9 +137,16 @@ Deployment expands those values into the binary's flags.
 | `health_port` | `-health-port` | `8080` |
 | `retention` | `-retention` | `24h` |
 
-Run the binary with `-help` for all flags, including `-http-port` (default `8086`)
-and `-data-dir` (also configurable with `CHRONICLE_DATA_DIR`). The three listening
-ports must be distinct in demo and sidecar modes. Durations must be positive.
+Run the binary with `-help` for all flags, including `-http-port` (default `8086`),
+`-http-bind-address` (default `127.0.0.1`), and `-data-dir` (also configurable with
+`CHRONICLE_DATA_DIR`). The three listening ports must be distinct in demo and
+sidecar modes. Durations must be positive.
+
+Local runs bind the query API to loopback unless `-http-bind-address` is supplied.
+The corresponding library setting is `Config.HTTP.HTTPBindAddress`; an empty
+value also retains the `127.0.0.1` default. Supply a host or IP address without a
+port. The provided Deployment opts into `0.0.0.0` for its ClusterIP Service; the
+example does not enable query authentication.
 
 After changing the ConfigMap, restart the Deployment to reload environment
 values:

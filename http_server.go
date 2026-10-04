@@ -82,7 +82,11 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		json.NewEncoder(w).Encode(httpMetrics.Snapshot())
 	}))
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	bindAddress := db.config.HTTP.HTTPBindAddress
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
+	addr := net.JoinHostPort(bindAddress, fmt.Sprint(port))
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
