@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -310,10 +311,11 @@ func (s *K8sSidecar) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (s *K8sSidecar) handleTargets(w http.ResponseWriter, r *http.Request) {
 	s.targetsMu.RLock()
-	defer s.targetsMu.RUnlock()
+	targets := slices.Clone(s.targets)
+	s.targetsMu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.targets)
+	json.NewEncoder(w).Encode(targets)
 }
 
 func (s *K8sSidecar) handleStats(w http.ResponseWriter, r *http.Request) {

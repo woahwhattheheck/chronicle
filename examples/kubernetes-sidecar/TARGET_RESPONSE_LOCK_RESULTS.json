@@ -1,0 +1,104 @@
+{
+  "source_commit": "3bff9d255e45c27f1ad66b0e0571850969c8e8ac",
+  "execution_scope": "full-package",
+  "runtime": [
+    "go version go1.24.4 linux/amd64",
+    "linux",
+    "amd64",
+    "1",
+    "local"
+  ],
+  "blobs": {
+    "baseline-k8s_sidecar.go": "ce5aa1aaeecd1d592b642f3e0eac71872338ec39",
+    "candidate-k8s_sidecar.go": "c5e976b9a564a43cdf5d0414166276f47ddffe81",
+    "k8s_sidecar_response_test.go": "ea46bc246bfa381339a2e5f1818cb2df13fd9508",
+    "isolation_support.go": "fccf36c23039edd51422001da884aa1a264116aa"
+  },
+  "runs": {
+    "full-after": {
+      "exit": 0,
+      "selected_events": [
+        {
+          "Time": "2026-10-04T12:14:26.876884445Z",
+          "Action": "run",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock"
+        },
+        {
+          "Time": "2026-10-04T12:14:26.876912297Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "=== RUN   TestK8sSidecarTargetResponseLock\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:26.877048603Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "    k8s_sidecar_response_test.go:89: response_write_held: add_completed=true remove_completed=true add_ms=0.025839 remove_ms=0.000921\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:26.877071247Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "--- PASS: TestK8sSidecarTargetResponseLock (0.00s)\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:26.877077476Z",
+          "Action": "pass",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Elapsed": 0
+        }
+      ]
+    },
+    "full-before": {
+      "exit": 1,
+      "selected_events": [
+        {
+          "Time": "2026-10-04T12:14:13.838492137Z",
+          "Action": "run",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock"
+        },
+        {
+          "Time": "2026-10-04T12:14:13.838546889Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "=== RUN   TestK8sSidecarTargetResponseLock\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:14.83884725Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "    k8s_sidecar_response_test.go:89: response_write_held: add_completed=false remove_completed=false add_ms=1000.122162 remove_ms=1000.113229\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:14.838915534Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "    k8s_sidecar_response_test.go:93: target updates waited for /targets response Write\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:14.838943826Z",
+          "Action": "output",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Output": "--- FAIL: TestK8sSidecarTargetResponseLock (1.00s)\n"
+        },
+        {
+          "Time": "2026-10-04T12:14:14.838954562Z",
+          "Action": "fail",
+          "Package": "github.com/chronicle-db/chronicle",
+          "Test": "TestK8sSidecarTargetResponseLock",
+          "Elapsed": 1
+        }
+      ]
+    }
+  }
+}
