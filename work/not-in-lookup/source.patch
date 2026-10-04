@@ -33,15 +33,20 @@
  		if (filters[i].Op == TagOpRegex || filters[i].Op == TagOpNotRegex) && len(filters[i].Values) > 0 {
  			pattern := filters[i].Values[0]
  			if len(pattern) > maxTagFilterRegexLen {
-@@ -149,7 +165,7 @@
+@@ -149,8 +165,12 @@
  		return nil, newQueryError(QueryErrorTypeInvalid, "metric name is required", q, nil)
  	}
  
 -	// Pre-compile regex tag filters once before scanning partitions
-+	// Prepare tag filters once before scanning partitions
++	// Prepare execution-local filters: callers can reuse the same query.
++	// Do not publish mutable lookup state into the caller's filter slice.
  	if len(q.TagFilters) > 0 {
++		prepared := *q
++		prepared.TagFilters = append([]TagFilter(nil), q.TagFilters...)
++		q = &prepared
  		if err := prepareTagFilters(q.TagFilters); err != nil {
  			return nil, newQueryError(QueryErrorTypeInvalid, err.Error(), q, err)
+ 		}
 --- a/tags.go
 +++ b/tags.go
 @@ -68,12 +68,8 @@

@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -123,9 +124,13 @@ func TestTagNotInLookupExecute(t *testing.T) {
 		values = append(values, fmt.Sprintf("host-%03d", i))
 	}
 	q := &Query{Metric: "lookup", TagFilters: []TagFilter{{Key: "host", Op: TagOpNotIn, Values: values}}}
+	originalFilter := q.TagFilters[0]
 	result, err := db.Execute(q)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(q.TagFilters[0], originalFilter) {
+		t.Fatal("Execute changed the caller-owned tag filter")
 	}
 	if len(result.Points) != 65 {
 		t.Fatalf("raw query: got %d points, want 64 included hosts plus one missing host", len(result.Points))
