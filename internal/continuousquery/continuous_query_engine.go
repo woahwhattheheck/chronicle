@@ -203,7 +203,6 @@ func (e *ContinuousQueryEngine) CreateQuery(name, sql string, config CQConfig) (
 	ctx, cancel := context.WithCancel(e.ctx)
 
 	query := &ContinuousQueryV2{
-		ID:      fmt.Sprintf("cq-%d", time.Now().UnixNano()),
 		Name:    name,
 		SQL:     sql,
 		Plan:    plan,
@@ -221,6 +220,15 @@ func (e *ContinuousQueryEngine) CreateQuery(name, sql string, config CQConfig) (
 	}
 
 	e.queryMu.Lock()
+	if len(e.queries) >= e.config.MaxQueries {
+		e.queryMu.Unlock()
+		cancel()
+		return nil, errors.New("max queries reached")
+	}
+	// The wall clock can repeat, especially on Windows. Never let a new query
+	// replace an existing query created in the same clock tick.
+	e.querySequence++
+	query.ID = fmt.Sprintf("cq-%d-%d", query.Created.UnixNano(), e.querySequence)
 	e.queries[query.ID] = query
 	e.queryMu.Unlock()
 

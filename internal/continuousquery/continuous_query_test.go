@@ -169,6 +169,106 @@ func TestContinuousQueryEngine(t *testing.T) {
 	})
 }
 
+func TestContinuousQueryEngine_RapidCreatesRetainQueries(t *testing.T) {
+	const count = 256
+	config := DefaultContinuousQueryConfig()
+	config.MaxQueries = count
+	engine := NewContinuousQueryEngine(nil, nil, config)
+	defer engine.Stop()
+
+	seen := make(map[string]bool, 2*count)
+	for batch := 0; batch < 2; batch++ {
+		queries := make([]*ContinuousQueryV2, 0, count)
+		for i := 0; i < count; i++ {
+			query, err := engine.CreateQuery("rapid", "SELECT * FROM stream", CQConfig{})
+			if err != nil {
+				t.Fatalf("CreateQuery %d/%d: %v", batch, i, err)
+			}
+			if seen[query.ID] {
+				t.Fatalf("CreateQuery reused ID %q", query.ID)
+			}
+			seen[query.ID] = true
+			queries = append(queries, query)
+		}
+		for _, query := range queries {
+			retained, ok := engine.GetQuery(query.ID)
+			if !ok || retained != query {
+				t.Fatalf("query %q was replaced or lost", query.ID)
+			}
+		}
+		stats := engine.GetStats()
+		if stats.QueriesTotal != count || stats.QueriesCreated != int64((batch+1)*count) {
+			t.Fatalf("accepted queries not retained in statistics: %+v", stats)
+		}
+		for _, query := range queries {
+			if err := engine.DeleteQuery(query.ID); err != nil {
+				t.Fatalf("DeleteQuery %q: %v", query.ID, err)
+			}
+		}
+	}
+}
+
+type queryCreationBarrier struct {
+	arrived chan struct{}
+	release chan struct{}
+}
+
+func (b *queryCreationBarrier) Name() string { return "query creation barrier" }
+
+func (b *queryCreationBarrier) Apply(plan *QueryPlan) (*QueryPlan, bool) {
+	b.arrived <- struct{}{}
+	<-b.release
+	return plan, false
+}
+
+func TestContinuousQueryEngine_ConcurrentCreateLimit(t *testing.T) {
+	config := DefaultContinuousQueryConfig()
+	config.MaxQueries = 1
+	engine := NewContinuousQueryEngine(nil, nil, config)
+	defer engine.Stop()
+
+	barrier := &queryCreationBarrier{
+		arrived: make(chan struct{}, 2),
+		release: make(chan struct{}),
+	}
+	engine.optimizer.rules = []OptimizationRule{barrier}
+	type result struct {
+		query *ContinuousQueryV2
+		err   error
+	}
+	results := make(chan result, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			query, err := engine.CreateQuery("concurrent", "SELECT * FROM stream", CQConfig{})
+			results <- result{query, err}
+		}()
+	}
+	// Both callers passed the initial limit check before either registers.
+	<-barrier.arrived
+	<-barrier.arrived
+	close(barrier.release)
+
+	accepted := 0
+	for i := 0; i < 2; i++ {
+		outcome := <-results
+		if outcome.err != nil {
+			if outcome.err.Error() != "max queries reached" {
+				t.Errorf("unexpected creation error: %v", outcome.err)
+			}
+			continue
+		}
+		accepted++
+		retained, ok := engine.GetQuery(outcome.query.ID)
+		if !ok || retained != outcome.query {
+			t.Errorf("accepted query %q was replaced or lost", outcome.query.ID)
+		}
+	}
+	stats := engine.GetStats()
+	if accepted != 1 || stats.QueriesTotal != 1 || stats.QueriesCreated != 1 {
+		t.Errorf("limit 1 accepted %d queries; statistics: %+v", accepted, stats)
+	}
+}
+
 func TestContinuousQueryEngine_QueryPlan(t *testing.T) {
 	config := DefaultContinuousQueryConfig()
 	engine := NewContinuousQueryEngine(nil, nil, config)
