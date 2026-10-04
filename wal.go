@@ -219,7 +219,7 @@ func (w *WAL) Reset() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if err := w.file.Truncate(0); err != nil {
+	if err := truncateWALFile(w.file); err != nil {
 		return err
 	}
 	if _, err := w.file.Seek(0, io.SeekStart); err != nil {
