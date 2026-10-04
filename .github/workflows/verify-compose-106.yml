@@ -1,0 +1,205 @@
+name: Exact-head Compose acceptance evidence
+'on':
+  push:
+    branches:
+    - validation/chronicle106-compose-20261004-rivet
+    paths:
+    - .github/workflows/verify-compose-106.yml
+permissions:
+  contents: read
+concurrency:
+  group: chronicle106-compose-rivet
+  cancel-in-progress: false
+jobs:
+  maintained-stack:
+    if: github.repository == 'woahwhattheheck/chronicle'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: 'true'
+      COMPOSE_PROJECT_NAME: chronicle106-rivet
+      COMPOSE_PARALLEL_LIMIT: '2'
+      SOURCE_SHA: f5ceec497293239913b7be86f9a1ec9a83f4f7f6
+    steps:
+    - name: Check out exact submitted source
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.SOURCE_SHA }}
+        fetch-depth: 1
+        persist-credentials: false
+    - name: Capture source and tool provenance
+      run: |-
+        set -euo pipefail
+        mkdir -p evidence
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git rev-parse HEAD > evidence/source-commit.txt
+        git ls-files -s examples/docker-compose-monitoring go.mod go.sum .dockerignore > evidence/source-blobs.txt
+        docker version > evidence/docker-version.txt
+        docker compose version > evidence/compose-version.txt
+        uname -a > evidence/runner.txt
+        cd examples/docker-compose-monitoring
+        docker compose config > "$GITHUB_WORKSPACE/evidence/compose-resolved.yml"
+    - name: Build and start the unchanged stack
+      working-directory: examples/docker-compose-monitoring
+      run: |-
+        set -euo pipefail
+        docker compose --progress plain up --build --detach --wait --wait-timeout 180 2>&1 | tee "$GITHUB_WORKSPACE/evidence/compose-start.log"
+    - name: Validate maintained Prometheus and Alertmanager configuration
+      working-directory: examples/docker-compose-monitoring
+      run: |-
+        set -euo pipefail
+        docker compose exec -T prometheus /bin/promtool check config /etc/prometheus/prometheus.yml 2>&1 | tee "$GITHUB_WORKSPACE/evidence/promtool.log"
+        docker compose exec -T alertmanager /bin/amtool check-config /etc/alertmanager/alertmanager.yml 2>&1 | tee "$GITHUB_WORKSPACE/evidence/amtool.log"
+    - name: Exercise ingestion, Grafana, alerts and persisted restart
+      run: |-
+        set -euo pipefail
+        cat > evidence/compose_probe.py <<'PY'
+        """Exercise the unchanged PR106 stack through its public HTTP interfaces."""
+        from __future__ import annotations
+
+        import base64
+        import json
+        import os
+        from pathlib import Path
+        import subprocess
+        import time
+        from urllib.error import HTTPError, URLError
+        from urllib.parse import urlencode
+        from urllib.request import Request, urlopen
+
+        ROOT = Path(os.environ["GITHUB_WORKSPACE"])
+        EVIDENCE = ROOT / "evidence"
+        STACK = ROOT / "examples/docker-compose-monitoring"
+        RESULTS: list[dict] = []
+
+
+        def request(url: str, *, data: bytes | None = None, grafana: bool = False) -> bytes:
+            headers = {"Content-Type": "text/plain"} if data is not None else {}
+            if grafana:
+                # These are the maintained example's public demo credentials, not an account secret.
+                headers["Authorization"] = "Basic " + base64.b64encode(b"admin:chronicle").decode()
+            with urlopen(Request(url, data=data, headers=headers), timeout=5) as response:
+                return response.read()
+
+
+        def record(name: str, value) -> None:
+            (EVIDENCE / (name + ".json")).write_text(json.dumps(value, indent=2) + "\n")
+            RESULTS.append({"check": name, "result": "pass"})
+            print("PASS:", name, flush=True)
+
+
+        def wait_json(name: str, url: str, predicate, *, timeout: int = 120, grafana: bool = False):
+            deadline = time.monotonic() + timeout
+            last = None
+            while time.monotonic() < deadline:
+                try:
+                    last = json.loads(request(url, grafana=grafana))
+                    if predicate(last):
+                        record(name, last)
+                        return last
+                except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+                    last = {"error": type(exc).__name__, "detail": str(exc)}
+                time.sleep(3)
+            (EVIDENCE / (name + "-failed.json")).write_text(json.dumps(last, indent=2) + "\n")
+            raise RuntimeError(f"{name} did not satisfy its acceptance condition in {timeout}s; last={last}")
+
+
+        def wait_http(name: str, url: str, timeout: int = 90) -> None:
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                try:
+                    body = request(url)
+                    record(name, {"url": url, "body": body.decode(errors="replace")})
+                    return
+                except (HTTPError, URLError, TimeoutError, OSError):
+                    time.sleep(3)
+            raise RuntimeError(f"{name} did not become healthy in {timeout}s")
+
+
+        def query(base: str, expr: str) -> str:
+            return base + "/api/v1/query?" + urlencode({"query": expr})
+
+
+        def series(value: dict) -> list[dict]:
+            if value.get("status") != "success":
+                return []
+            return value.get("data", {}).get("result", [])
+
+
+        def has_value(value: dict, predicate) -> bool:
+            try:
+                return any(predicate(float(item["value"][1])) for item in series(value))
+            except (ValueError, TypeError, KeyError, IndexError):
+                return False
+
+
+        def compose(*args: str) -> None:
+            subprocess.run(["docker", "compose", *args], cwd=STACK, check=True, timeout=150)
+
+
+        wait_http("chronicle-health", "http://127.0.0.1:8086/health")
+        wait_http("prometheus-ready", "http://127.0.0.1:9090/-/ready")
+        wait_http("alertmanager-ready", "http://127.0.0.1:9093/-/ready")
+        wait_json("grafana-health", "http://127.0.0.1:3000/api/health", lambda v: v.get("database") == "ok")
+        wait_json("generated-sample", query("http://127.0.0.1:8086", 'demo_cpu_percent{host="compose",env="dev"}'), lambda v: has_value(v, lambda x: 20 <= x < 35))
+        wait_json("prometheus-target-up", query("http://127.0.0.1:9090", 'up{job="chronicle"}'), lambda v: has_value(v, lambda x: x == 1))
+        wait_json("prometheus-ingestion-count", query("http://127.0.0.1:9090", 'chronicle_metric_count{job="chronicle"}'), lambda v: has_value(v, lambda x: x >= 1))
+        wait_json("grafana-datasource", "http://127.0.0.1:3000/api/datasources/uid/Prometheus", lambda v: v.get("uid") == "Prometheus" and v.get("url") == "http://prometheus:9090", grafana=True)
+        wait_json("grafana-dashboard", "http://127.0.0.1:3000/api/dashboards/uid/chronicle-compose-overview", lambda v: v.get("meta", {}).get("provisioned") is True and len(v.get("dashboard", {}).get("panels", [])) == 2 and all(p.get("datasource", {}).get("uid") == "Prometheus" for p in v.get("dashboard", {}).get("panels", [])), grafana=True)
+        wait_json("grafana-datasource-query", query("http://127.0.0.1:3000/api/datasources/proxy/uid/Prometheus", 'up{job="chronicle"}'), lambda v: has_value(v, lambda x: x == 1), grafana=True)
+
+
+        def alert_rules_valid(value: dict) -> bool:
+            rules = [r for g in value.get("data", {}).get("groups", []) for r in g.get("rules", [])]
+            return {"ChronicleTargetDown", "ChronicleNoSampleData"}.issubset({r.get("name") for r in rules if r.get("health") == "ok"})
+
+
+        wait_json("alert-rules-loaded", "http://127.0.0.1:9090/api/v1/rules?type=alert", alert_rules_valid)
+        probe = "acceptance_persistence_" + os.environ["GITHUB_RUN_ID"]
+        request("http://127.0.0.1:8086/write", data=f"{probe},source=workflow value=47.5\n".encode())
+        probe_query = query("http://127.0.0.1:8086", probe + '{source="workflow"}')
+        before = wait_json("persistence-before-stop", probe_query, lambda v: has_value(v, lambda x: x == 47.5))
+        compose("stop", "--timeout", "10", "metric-gen", "chronicle")
+        wait_json("target-down-observed", query("http://127.0.0.1:9090", 'up{job="chronicle"}'), lambda v: has_value(v, lambda x: x == 0))
+        wait_json("prometheus-alert-firing", "http://127.0.0.1:9090/api/v1/alerts", lambda v: any(a.get("labels", {}).get("alertname") == "ChronicleTargetDown" and a.get("state") == "firing" for a in v.get("data", {}).get("alerts", [])), timeout=150)
+        wait_json("alertmanager-received-alert", "http://127.0.0.1:9093/api/v2/alerts", lambda v: isinstance(v, list) and any(a.get("labels", {}).get("alertname") == "ChronicleTargetDown" and a.get("status", {}).get("state") == "active" and any(r.get("name") == "local-ui" for r in a.get("receivers", [])) for a in v), timeout=90)
+        compose("start", "--wait", "--wait-timeout", "90", "chronicle")
+        wait_http("chronicle-health-after-restart", "http://127.0.0.1:8086/health")
+        after = wait_json("persistence-after-restart", probe_query, lambda v: has_value(v, lambda x: x == 47.5))
+        assert sorted((x["metric"]["source"], x["value"]) for x in series(before)) == sorted((x["metric"]["source"], x["value"]) for x in series(after)), "Sentinel timestamp/value changed across restart"
+        record("exact-point-survives-restart", {"before": before, "after": after, "generator_stopped": True})
+        wait_json("prometheus-target-recovered", query("http://127.0.0.1:9090", 'up{job="chronicle"}'), lambda v: has_value(v, lambda x: x == 1))
+        summary = {"source_commit": os.environ["SOURCE_SHA"], "checks": RESULTS, "scope": "Actual unchanged Docker Compose stack; HTTP provisioning/query checks, not browser rendering. Local Alertmanager receipt, not external notifications. No bounty eligibility, maintainer approval, or payment assertion."}
+        (EVIDENCE / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(json.dumps(summary, indent=2), flush=True)
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+            output.write(f"## PR106 full Compose acceptance\n\n{len(RESULTS)} checks passed at `{os.environ['SOURCE_SHA']}`.\n\n")
+            output.write("The maintained metric generator, Chronicle database, Prometheus scrape/rules, Alertmanager receiver and provisioned Grafana datasource/dashboard were exercised. The exact sentinel timestamp/value survived a stopped-generator database restart.\n\n")
+            output.write("No source rewrite, CI-gate change, browser rendering, external notification, or payout claim.\n")
+        PY
+        python3 -u evidence/compose_probe.py 2>&1 | tee evidence/acceptance.log
+    - name: Record actual images and stack diagnostics
+      if: always()
+      working-directory: examples/docker-compose-monitoring
+      run: |-
+        mkdir -p "$GITHUB_WORKSPACE/evidence"
+        docker compose ps --all --format json > "$GITHUB_WORKSPACE/evidence/compose-ps.json" 2>&1 || true
+        docker compose logs --no-color > "$GITHUB_WORKSPACE/evidence/compose-services.log" 2>&1 || true
+        docker compose images --format json > "$GITHUB_WORKSPACE/evidence/compose-images.json" 2>&1 || true
+        docker image ls --digests --no-trunc > "$GITHUB_WORKSPACE/evidence/image-digests.txt" 2>&1 || true
+        git diff --exit-code > "$GITHUB_WORKSPACE/evidence/source-diff.txt"
+    - name: Remove only this disposable validation stack
+      if: always()
+      working-directory: examples/docker-compose-monitoring
+      run: docker compose down --volumes --remove-orphans
+    - name: Retain execution evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: chronicle106-compose-execution-${{ env.SOURCE_SHA }}
+        path: evidence/
+        retention-days: 14
+        if-no-files-found: error
