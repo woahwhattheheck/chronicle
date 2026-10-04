@@ -77,16 +77,31 @@ type TagFilter struct {
 	Values []string
 
 	// compiledRe caches the compiled regex for TagOpRegex/TagOpNotRegex.
-	// Set by prepareTagFilters before query execution.
+	// Set on an execution-local filter copy before query execution.
 	compiledRe *regexp.Regexp
+
+	// excludedValues caches larger NOT IN lists for constant-time membership.
+	// Set on an execution-local filter copy and never serialized.
+	excludedValues map[string]struct{}
 }
 
 const maxTagFilterRegexLen = 1024
 
-// prepareTagFilters pre-compiles regex patterns in tag filters.
-// Must be called before query execution to avoid per-series compilation.
+// Small NOT IN lists are cheaper to scan and avoid a per-query lookup allocation.
+const minNotInLookupValues = 16
+
+// prepareTagFilters prepares reusable regex and exclusion lookups on filters that
+// are private to one execution.
 func prepareTagFilters(filters []TagFilter) error {
 	for i := range filters {
+		filters[i].excludedValues = nil
+		if filters[i].Op == TagOpNotIn && len(filters[i].Values) >= minNotInLookupValues {
+			excluded := make(map[string]struct{}, len(filters[i].Values))
+			for _, value := range filters[i].Values {
+				excluded[value] = struct{}{}
+			}
+			filters[i].excludedValues = excluded
+		}
 		if (filters[i].Op == TagOpRegex || filters[i].Op == TagOpNotRegex) && len(filters[i].Values) > 0 {
 			pattern := filters[i].Values[0]
 			if len(pattern) > maxTagFilterRegexLen {
@@ -100,6 +115,36 @@ func prepareTagFilters(filters []TagFilter) error {
 		}
 	}
 	return nil
+}
+
+// prepareQueryTagFilters keeps query preparation execution-local. Query values
+// remain caller-owned and reusable; only hidden caches are written to the copy.
+// Small NOT IN filters need no preparation and retain the zero-allocation path.
+func prepareQueryTagFilters(q *Query) (*Query, error) {
+	if q == nil || len(q.TagFilters) == 0 {
+		return q, nil
+	}
+	needsPreparation := false
+	for _, filter := range q.TagFilters {
+		if filter.Op == TagOpNotIn && len(filter.Values) >= minNotInLookupValues {
+			needsPreparation = true
+			break
+		}
+		if (filter.Op == TagOpRegex || filter.Op == TagOpNotRegex) && len(filter.Values) > 0 {
+			needsPreparation = true
+			break
+		}
+	}
+	if !needsPreparation {
+		return q, nil
+	}
+
+	execQuery := *q
+	execQuery.TagFilters = append([]TagFilter(nil), q.TagFilters...)
+	if err := prepareTagFilters(execQuery.TagFilters); err != nil {
+		return nil, err
+	}
+	return &execQuery, nil
 }
 
 // Execute runs a query and returns results.
@@ -149,12 +194,12 @@ func (db *DB) executeContextInternal(ctx context.Context, q *Query) (*Result, er
 		return nil, newQueryError(QueryErrorTypeInvalid, "metric name is required", q, nil)
 	}
 
-	// Pre-compile regex tag filters once before scanning partitions
-	if len(q.TagFilters) > 0 {
-		if err := prepareTagFilters(q.TagFilters); err != nil {
-			return nil, newQueryError(QueryErrorTypeInvalid, err.Error(), q, err)
-		}
+	// Prepare reusable tag-filter state on an execution-local query copy.
+	preparedQuery, err := prepareQueryTagFilters(q)
+	if err != nil {
+		return nil, newQueryError(QueryErrorTypeInvalid, err.Error(), q, err)
 	}
+	q = preparedQuery
 
 	// Check query cost budget (only if estimator already initialized)
 	if db.features != nil {
