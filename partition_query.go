@@ -259,12 +259,8 @@ func matchesTagFilters(seriesTags map[string]string, filters []TagFilter) bool {
 				return false
 			}
 		case TagOpNotIn:
-			if ok {
-				for _, v := range filter.Values {
-					if value == v {
-						return false
-					}
-				}
+			if ok && tagFilterExcludes(filter, value) {
+				return false
 			}
 		case TagOpRegex:
 			if len(filter.Values) == 0 {
