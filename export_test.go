@@ -286,7 +286,8 @@ func TestValidateExportPath(t *testing.T) {
 		{"sensitive /sys", "/sys/kernel", true},
 		{"sensitive /root", "/root/.ssh", true},
 		{"sensitive /boot", "/boot/vmlinuz", true},
-		{"path traversal attempt", "../../../etc/passwd", false}, // Cleaned path may be valid
+		{"traversal within temp", t.TempDir() + "/subdir/../etc/passwd", false},
+		{"traversal to sensitive root", "/tmp/../etc/passwd", true},
 		{"user home directory", "/home/user/data.csv", false},
 		{"current directory", "./export.csv", false},
 	}

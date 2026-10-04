@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,13 +30,26 @@ func validateExportPath(outputPath string) (string, error) {
 		return "", fmt.Errorf("invalid output path: %w", err)
 	}
 
+	// Compare directory segments within the volume using platform path rules.
+	// Keep absPath unchanged so the returned destination retains its spelling.
+	comparisonPath := absPath
+	if runtime.GOOS == "windows" {
+		comparisonPath = strings.ToLower(filepath.ToSlash(absPath))
+		// Go 1.24 treats only \\?\UNC as the extended UNC volume. Use
+		// ordinary UNC form so the comparison volume includes host and share.
+		if strings.HasPrefix(comparisonPath, "//?/unc/") {
+			comparisonPath = "//" + comparisonPath[len("//?/unc/"):]
+		}
+		comparisonPath = comparisonPath[len(filepath.VolumeName(comparisonPath)):]
+	}
+
 	// Prevent writes to common sensitive directories
 	sensitivePatterns := []string{
 		"/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin",
 		"/boot", "/dev", "/proc", "/sys", "/root",
 	}
 	for _, pattern := range sensitivePatterns {
-		if strings.HasPrefix(absPath, pattern+"/") || absPath == pattern {
+		if strings.HasPrefix(comparisonPath, pattern+"/") || comparisonPath == pattern {
 			return "", fmt.Errorf("cannot write to sensitive directory: %s", pattern)
 		}
 	}
