@@ -13,7 +13,6 @@ jobs:
     env:
       CGO_ENABLED: '0'
       GOTOOLCHAIN: local
-      RECORDED_EVIDENCE: ${{ runner.temp }}/recorded-branch-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +30,8 @@ jobs:
           github-token: ${{ github.token }}
       - name: Reconstruct the executed recipe without repeating tests
         shell: python
+        env:
+          RECORDED_EVIDENCE: ${{ runner.temp }}/recorded-branch-evidence
         run: |
           import hashlib, json, os, pathlib, subprocess, textwrap
           controller = "8ae0a1fc68721de5ab2eefbdb734f63e90f8baaf"
