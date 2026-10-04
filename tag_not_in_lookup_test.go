@@ -71,6 +71,51 @@ func TestNotInLookupBoundarySemantics(t *testing.T) {
 	}
 }
 
+func TestNotInLookupExecuteKeepsCallerImmutable(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	ts := time.Now().Add(-time.Hour).Truncate(time.Hour).UnixNano()
+	values := testNotInValues(64)
+	for i, host := range values {
+		if err := db.Write(Point{Metric: "lookup", Tags: map[string]string{"host": host}, Value: 1, Timestamp: ts + int64(i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Write(Point{Metric: "lookup", Tags: map[string]string{"host": "allowed"}, Value: 1, Timestamp: ts + 100}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(Point{Metric: "lookup", Tags: nil, Value: 1, Timestamp: ts + 101}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	q := &Query{Metric: "lookup", TagFilters: []TagFilter{{Key: "host", Op: TagOpNotIn, Values: values}}}
+	result, err := db.Execute(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.TagFilters[0].excludedValues != nil || q.TagFilters[0].compiledRe != nil {
+		t.Fatal("Execute mutated caller-owned filter caches")
+	}
+	if len(result.Points) != 2 {
+		t.Fatalf("raw query returned %d points, want allowed + missing", len(result.Points))
+	}
+
+	q.Aggregation = &Aggregation{Function: AggSum, Window: time.Hour}
+	result, err = db.Execute(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.TagFilters[0].excludedValues != nil || q.TagFilters[0].compiledRe != nil {
+		t.Fatal("aggregate Execute mutated caller-owned filter caches")
+	}
+	if len(result.Points) != 1 || result.Points[0].Value != 2 {
+		t.Fatalf("aggregate query returned %+v, want one bucket with sum 2", result.Points)
+	}
+}
+
 var benchmarkNotInMatches int
 
 func BenchmarkNotInLookup4096(b *testing.B) {
