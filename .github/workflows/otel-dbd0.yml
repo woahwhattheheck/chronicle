@@ -1,0 +1,39 @@
+name: DBD0 OTel Windows lifecycle
+on:
+  push:
+    branches: [validation/otel-lifecycle-dbd0-20261004]
+permissions:
+  contents: write
+jobs:
+  selected-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      GOMAXPROCS: '2'
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 7b8512b6fcbe6ac1942b73cfe7911fcdad63660d
+          path: subject
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+          cache-dependency-path: subject/go.sum
+      - name: Execute only the two selected lifecycle cases
+        run: python controller/work/validation/otel-dbd0/check.py subject controller/evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: otel-windows-dbd0
+          path: controller/evidence
+          retention-days: 7
+          if-no-files-found: error
