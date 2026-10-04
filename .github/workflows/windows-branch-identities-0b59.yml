@@ -1,0 +1,173 @@
+name: Windows branch identity acceptance
+on:
+  push:
+    branches: [verify/branch-identities-20261004-0b59]
+    paths: [.github/workflows/windows-branch-identities-0b59.yml]
+permissions:
+  contents: write
+concurrency:
+  group: windows-branch-identities-0b59
+  cancel-in-progress: false
+jobs:
+  focused:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      GOMAXPROCS: '4'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c977e6283e9c6a145f509ca097f9a2746e7324b
+          fetch-depth: 1
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.13
+          cache: true
+      - name: Reproduce, repair, and run focused native acceptance
+        shell: python
+        run: |
+          import json, os, pathlib, platform, subprocess, time
+          BASE = "8c977e6283e9c6a145f509ca097f9a2746e7324b"
+          SOURCE_BLOB = "a014c8f9d8fd085a2034bc550b97c0379ce77bc1"
+          TARGET = "candidate/branch-identities-20261004-0b59"
+          root = pathlib.Path.cwd()
+          evidence = pathlib.Path(os.environ["RUNNER_TEMP"]) / "branch-identity-evidence"
+          evidence.mkdir(exist_ok=True)
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+          def checked(*args):
+              subprocess.run(args, check=True)
+          assert git("rev-parse", "HEAD") == BASE
+          source = root / "ts_branching_diff.go"
+          assert git("hash-object", str(source)) == SOURCE_BLOB
+          regression = '''package chronicle
+          import (
+              "sync"
+              "testing"
+          )
+          func TestTSBranchIdentityUniqueness(t *testing.T) {
+              for name, generate := range map[string]func() string{
+                  "branch": generateBranchID,
+                  "commit": generateCommitID,
+              } {
+                  t.Run(name, func(t *testing.T) {
+                      const workers, perWorker = 8, 1024
+                      ids := make(chan string, workers*perWorker)
+                      var wg sync.WaitGroup
+                      for i := 0; i < workers; i++ {
+                          wg.Add(1)
+                          go func() {
+                              defer wg.Done()
+                              for j := 0; j < perWorker; j++ { ids <- generate() }
+                          }()
+                      }
+                      wg.Wait()
+                      close(ids)
+                      seen := make(map[string]struct{}, workers*perWorker)
+                      for id := range ids {
+                          if _, exists := seen[id]; exists { t.Fatalf("%s allocator repeated ID %q", name, id) }
+                          seen[id] = struct{}{}
+                      }
+                  })
+              }
+          }
+          func TestTSBranchHistoryIdentities(t *testing.T) {
+              config := DefaultTSBranchConfig()
+              config.AutoCleanup = false
+              manager, err := NewTSBranchManager(nil, config)
+              if err != nil { t.Fatal(err) }
+              defer manager.Close()
+              main, err := manager.GetBranch("main")
+              if err != nil { t.Fatal(err) }
+              feature, err := manager.CreateBranch("feature", "main", "", "")
+              if err != nil { t.Fatal(err) }
+              if feature.ID == main.ID { t.Fatal("new branch shares its parent's identity") }
+              const count = 32
+              want := make([]string, 0, count)
+              for i := 0; i < count; i++ {
+                  err := manager.Write("feature", &Point{Metric: "counter", Timestamp: int64(i+1), Value: float64(i)}, "", "")
+                  if err != nil { t.Fatal(err) }
+                  want = append(want, feature.HeadCommit)
+              }
+              history, err := manager.GetCommitHistory("feature", count+1)
+              if err != nil { t.Fatal(err) }
+              if len(history) != count { t.Fatalf("history has %d commits, want %d", len(history), count) }
+              seen := make(map[string]struct{}, count)
+              for i, commit := range history {
+                  if commit.ID != want[count-1-i] { t.Fatalf("history item %d has unexpected identity", i) }
+                  if _, exists := seen[commit.ID]; exists { t.Fatalf("history repeats commit %q", commit.ID) }
+                  seen[commit.ID] = struct{}{}
+                  if commit.BranchID != feature.ID { t.Fatal("history changed branch identity") }
+                  if i+1 < len(history) && commit.ParentID != history[i+1].ID { t.Fatal("broken history parent link") }
+              }
+              if history[len(history)-1].ParentID != "" { t.Fatal("first write has unexpected parent") }
+          }
+          '''
+          (root / "ts_branching_identity_test.go").write_text(regression, encoding="utf-8", newline="\n")
+          checked("gofmt", "-w", "ts_branching_identity_test.go")
+          def execute(label, selection):
+              command = ["go", "test", "-json", "-count=1", "-short", "-p=2", "-timeout=4m", "-run", selection, "."]
+              started = time.monotonic()
+              completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+              elapsed = time.monotonic() - started
+              (evidence / (label + ".jsonl")).write_text(completed.stdout, encoding="utf-8")
+              (evidence / (label + ".stderr.txt")).write_text(completed.stderr, encoding="utf-8")
+              events = []
+              for line in completed.stdout.splitlines():
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  if event.get("Test") and event.get("Action") in ("pass", "fail", "skip"):
+                      events.append({"test": event["Test"], "action": event["Action"]})
+              result = {"command": command, "exit_code": completed.returncode, "elapsed_seconds": elapsed, "events": events}
+              (evidence / (label + "-summary.json")).write_text(json.dumps(result, indent=2), encoding="utf-8")
+              print(json.dumps({label: result}, indent=2), flush=True)
+              if completed.stderr: print(completed.stderr[-4000:], flush=True)
+              return result
+          baseline = execute("before", "^(TestTSBranchIdentityUniqueness|TestTSBranchHistoryIdentities)$")
+          assert any(e["action"] == "fail" and e["test"].startswith("TestTSBranchIdentity") for e in baseline["events"]), "No actual identity failure reproduced; do not publish"
+          before = source.read_text(encoding="utf-8")
+          old = '// Helper functions\n\nfunc generateBranchID() string {\n\treturn fmt.Sprintf("br_%d", time.Now().UnixNano())\n}\n\nfunc generateCommitID() string {\n\treturn fmt.Sprintf("cm_%d", time.Now().UnixNano())\n}'
+          new = '// Helper functions\n\n// Branch and commit registries are process-local. A sequence keeps their keys\n// distinct when concurrent operations observe the same or a rolled-back clock.\nvar tsBranchIdentitySequence uint64\n\nfunc generateBranchID() string {\n\treturn fmt.Sprintf("br_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&tsBranchIdentitySequence, 1))\n}\n\nfunc generateCommitID() string {\n\treturn fmt.Sprintf("cm_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&tsBranchIdentitySequence, 1))\n}'
+          assert before.count(old) == 1, "Source preimage changed"
+          source.write_text(before.replace(old, new), encoding="utf-8", newline="\n")
+          checked("gofmt", "-w", "ts_branching_diff.go")
+          checked("git", "diff", "--check")
+          assert git("diff", "--name-only").splitlines() == ["ts_branching_diff.go"]
+          checked("git", "config", "user.name", "woahwhattheheck")
+          checked("git", "config", "user.email", "293286387+woahwhattheheck@users.noreply.github.com")
+          checked("git", "add", "ts_branching_diff.go", "ts_branching_identity_test.go")
+          checked("git", "commit", "-m", "fix: keep time-series branch and commit identities unique on repeated clocks")
+          product = git("rev-parse", "HEAD")
+          after = execute("after", "^(TestTSBranchIdentityUniqueness|TestTSBranchHistoryIdentities|TestBranchDiff|TestManualMergeConflict|TestTSDiffMerge_DiffBranches)$")
+          assert after["exit_code"] == 0, "Focused Windows acceptance failed; candidate not published"
+          expected = {"TestTSBranchIdentityUniqueness", "TestTSBranchHistoryIdentities", "TestBranchDiff", "TestManualMergeConflict", "TestTSDiffMerge_DiffBranches"}
+          assert {e["test"] for e in after["events"] if e["action"] == "pass" and "/" not in e["test"]} == expected
+          assert not any(e["action"] in ("fail", "skip") for e in after["events"])
+          assert git("diff", "--name-only") == "", "Execution changed tracked source"
+          run_url = os.environ["GITHUB_SERVER_URL"] + "/" + os.environ["GITHUB_REPOSITORY"] + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+          provenance = {"base": BASE, "tested_source": product, "production_blob": git("hash-object", "ts_branching_diff.go"), "regression_blob": git("hash-object", "ts_branching_identity_test.go"), "platform": platform.platform(), "go": subprocess.check_output(["go", "version"], text=True).strip(), "CGO_ENABLED": os.environ["CGO_ENABLED"], "run": run_url, "before": baseline, "after": after}
+          (evidence / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+          for path in ("ts_branching_diff.go", "ts_branching_identity_test.go"):
+              (evidence / path).write_bytes((root / path).read_bytes())
+          report = "# Windows branch and commit identities\n\n## Repair\n\nTimestamp-only IDs can repeat on the native Windows clock. A process-wide atomic sequence now disambiguates both branch and commit keys while retaining their existing prefixes and timestamp component. Branch and commit registries are process-local; this does not add persistent or distributed identity guarantees. No dependencies, merge policies, point storage, or lock protocols changed.\n\n## Native execution on October 4, 2026\n\n"
+          report += f"Base source: `{BASE}`. Tested source: `{product}`.\n\nRuntime: `{provenance['platform']}`; `{provenance['go']}`; `CGO_ENABLED=0`.\n\n[Actual Windows run and raw evidence artifact]({run_url}). The `windows-branch-identity-evidence` artifact contains complete JSON events, stderr, source bytes and provenance and is retained for 14 days.\n\n"
+          report += "The before run adds only the same identity regression to the original source. It actually failed an identity assertion; it was not a cross-compile or mocked clock. The after run executes both new groups plus the three maintained branch/diff/merge groups from the historical Windows failure inventory. All five top-level groups passed with no skipped selected cases. Loops inside the identity group exercise 8 concurrent workers, 1,024 calls each, for each allocator. The history group confirms distinct branches and 32 sequential commit identities and links.\n\n```powershell\n$env:CGO_ENABLED = '0'\ngo test -json -count=1 -short -p=2 -timeout=4m -run '^(TestTSBranchIdentityUniqueness|TestTSBranchHistoryIdentities|TestBranchDiff|TestManualMergeConflict|TestTSDiffMerge_DiffBranches)$' .\n```\n\nThese are focused native library results, not a repository-wide pass, upstream CI approval, cgo/race-detector execution, bounty acceptance or payment. The nil-database history regression uses only the manager's in-memory write/history path; the three maintained groups retain their real database setup. Existing historical evidence remains source-bound.\n\n### Machine-readable result summary\n\n```json\n"
+          report += json.dumps(provenance, indent=2) + "\n```\n"
+          (root / "docs" / "WINDOWS_BRANCH_IDENTITIES.md").write_text(report, encoding="utf-8", newline="\n")
+          checked("git", "add", "docs/WINDOWS_BRANCH_IDENTITIES.md")
+          checked("git", "commit", "-m", "docs: record focused native Windows branch identity results")
+          final = git("rev-parse", "HEAD")
+          assert sorted(git("diff", "--name-only", BASE, final).splitlines()) == ["docs/WINDOWS_BRANCH_IDENTITIES.md", "ts_branching_diff.go", "ts_branching_identity_test.go"]
+          checked("git", "push", "origin", final + ":refs/heads/" + TARGET)
+          print(json.dumps({"published_candidate": final, "branch": TARGET, "tested_source": product}), flush=True)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-branch-identity-evidence
+          path: ${{ runner.temp }}/branch-identity-evidence
+          if-no-files-found: error
+          retention-days: 14
