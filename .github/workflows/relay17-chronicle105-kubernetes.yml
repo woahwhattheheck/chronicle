@@ -13,13 +13,14 @@ jobs:
     timeout-minutes: 20
     env:
       CHRONICLE_BASELINE_SHA: 87d28f7ee80960f0d70e29e2bb73e47048771771
-      EVIDENCE_DIR: ${{ runner.temp }}/chronicle105-evidence
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: Build and deploy baseline and candidate
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/chronicle105-evidence
         shell: bash
         run: bash work/validation/chronicle105-kubernetes-20261004/run.sh
       - name: Retain exact source and deployment evidence
