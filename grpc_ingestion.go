@@ -374,7 +374,7 @@ type QueryRequest struct {
 	Labels    map[string]string `json:"labels"`
 	StartTime int64             `json:"start_time"`
 	EndTime   int64             `json:"end_time"`
-	Aggregate string            `json:"aggregate"`
+	Aggregate string            `json:"aggregate"` // reducer over one-second buckets
 	GroupBy   []string          `json:"group_by"`
 	Limit     int               `json:"limit"`
 }
@@ -596,7 +596,8 @@ func (g *GRPCIngestionEngine) HandleQuery(ctx context.Context, req *QueryRequest
 	}
 
 	if req.Aggregate != "" {
-		agg := &Aggregation{}
+		// Match the SQL parser default when the request has no window field.
+		agg := &Aggregation{Window: time.Second}
 		switch req.Aggregate {
 		case "sum":
 			agg.Function = AggSum
@@ -610,6 +611,11 @@ func (g *GRPCIngestionEngine) HandleQuery(ctx context.Context, req *QueryRequest
 			agg.Function = AggCount
 		case "rate":
 			agg.Function = AggRate
+		default:
+			g.mu.Lock()
+			g.stats.TotalErrors++
+			g.mu.Unlock()
+			return nil, fmt.Errorf("unsupported aggregation: %s", req.Aggregate)
 		}
 		q.Aggregation = agg
 	}
