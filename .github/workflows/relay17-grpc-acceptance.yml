@@ -1,4 +1,4 @@
-name: Chronicle104 retained gRPC failure inspection Relay17
+name: Chronicle104 gRPC aggregation acceptance Relay17
 
 on:
   push:
@@ -6,31 +6,29 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
-  inspect:
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
+  grpc:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: chronicle104-grpc-relay17
-          run-id: 37202462701
-          github-token: ${{ github.token }}
-          path: grpc-retained
-      - name: Read existing failed-case output without executing tests
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root = Path("grpc-retained")
-          for label in ("baseline", "candidate"):
-              rows = [json.loads(line) for line in (root / (label + ".jsonl")).read_text(encoding="utf-8").splitlines() if line.strip()]
-              failed = {row["Test"] for row in rows if row.get("Action") == "fail" and row.get("Test")}
-              print("RETAINED " + label)
-              for row in rows:
-                  if row.get("Action") == "output" and row.get("Test") in failed:
-                      print(json.dumps({"test": row["Test"], "output": row["Output"]}), flush=True)
-          PY
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Run the final candidate and maintained index coverage
+        shell: pwsh
+        run: python work/validation/chronicle104-grpc-relay17/run_final.py
+      - name: Retain exact source and raw execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle104-grpc-relay17-final
+          path: grpc-final-evidence/
+          retention-days: 14
