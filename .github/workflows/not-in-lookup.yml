@@ -29,7 +29,7 @@ jobs:
       - name: Verify source pin
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "502c8e54b085897761b38f83c4b8b64eea3da873"
+          test "$(git rev-parse HEAD)" = "d6d4bd10db900e4cb6108c269b914655dd286270"
           test -z "$(gofmt -l query.go tags.go partition_query.go tag_not_in_lookup_test.go)"
       - name: Focused correctness
         run: |
