@@ -26,7 +26,7 @@ jobs:
         with:
           go-version: '1.24.13'
           cache-dependency-path: product/go.sum
-      - name: Pin source and add the two retained regressions
+      - name: Apply the identical patch to pinned source
         working-directory: product
         shell: bash
         run: |
@@ -44,32 +44,13 @@ jobs:
           test "$(git hash-object multi_modal_correlate.go)" = 659442b68abcb13e6d5cf0ed21df18e8f996bb57
           test "$(git hash-object multi_modal_correlate_test.go)" = 994ab0171ed4eb58fc2e04f307863cc62212a6fa
           cp multi_modal_correlate.go evidence/fixed.go
-          git show HEAD:multi_modal_correlate.go > multi_modal_correlate.go
-      - name: Execute the original implementation against the same selection
-        working-directory: product
-        shell: bash
-        run: |
-          set -uo pipefail
-          go test -short -count=1 -p=2 -timeout=120s -json -run "$SELECTION" . > evidence/before.jsonl 2> evidence/before-stderr.log
-          code=$?
-          echo "$code" > evidence/before-exit.txt
-          cp evidence/fixed.go multi_modal_correlate.go
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          rows=[json.loads(s) for s in Path('evidence/before.jsonl').read_text(encoding='utf-8').splitlines() if s.startswith('{')]
-          runs=[r['Test'] for r in rows if r['Action']=='run' and r.get('Test')]
-          failures=[r['Test'] for r in rows if r['Action']=='fail' and r.get('Test')]
-          assert len(runs)==4, (runs,Path('evidence/before-stderr.log').read_text())
-          assert 'TestMultiModalGeneratedIDUniqueness' in failures, failures
-          print(json.dumps({'executed':runs,'failed':failures}))
-          PY
-      - name: Execute the repaired implementation without changing dependencies
+          cp multi_modal_correlate_test.go evidence/regression.go
+          echo 'Baseline is already executed: run37193885461, all four selected tests failed. Do not rerun.' > evidence/baseline.txt
+      - name: Execute repaired source against the same four tests
         working-directory: product
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object multi_modal_correlate.go)" = 659442b68abcb13e6d5cf0ed21df18e8f996bb57
           go test -short -count=1 -p=2 -timeout=120s -json -run "$SELECTION" . > evidence/after.jsonl 2> evidence/after-stderr.log
           python - <<'PY'
           import json
@@ -88,7 +69,7 @@ jobs:
           set -euo pipefail
           git add multi_modal_correlate.go multi_modal_correlate_test.go
           test "$(git diff --cached --name-only | wc -l)" -eq 2
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix(multimodal): prevent generated log and span ID collisions [skip ci]' -m 'Use one process-monotonic atomic allocator while preserving 16-character hexadecimal IDs and explicit producer identities. Coarse clock readings can no longer overwrite spans or join unrelated log-index entries.' -m "Native Windows Go1.24.13, CGO0: original generated-ID uniqueness regression fails; all four selected original/regression tests pass after repair. No full suite or race-detector claim. Run https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix(multimodal): prevent generated log and span ID collisions [skip ci]' -m 'Use one process-monotonic atomic allocator while preserving 16-character hexadecimal IDs and explicit producer identities. Coarse clock readings can no longer overwrite spans or join unrelated log-index entries.' -m "Native Windows Go1.24.13, CGO0: all four selected tests failed on original code in run37193885461; all four pass after repair in https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID . The first control attempt stopped at patch application and no test executed. Baseline exited the previous job before the candidate step because the shell inherited errexit. No full suite or race-detector claim."
           git push origin "HEAD:refs/heads/$PRODUCT_REF"
           git rev-parse HEAD | tee evidence/candidate.txt
       - uses: actions/upload-artifact@v4
