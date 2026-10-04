@@ -6,9 +6,9 @@ Bounty #9 (`docs/BOUNTY_PROGRAM.md`): run Chronicle on Windows and document comp
 
 The original [PR #104](https://github.com/josedab/chronicle/pull/104) now includes
 the native WAL repair and the follow-up changes below. Product checkpoint:
-`313278c21b3f3714293772389fe3fabdc97a2c0f`. This index changes documentation only.
+`efb80aefe3af26183e765607ea013ca2d3ab2b1b`. This index changes documentation only.
 
-Each linked report identifies its executed source, command, platform, raw results
+Each linked report or native-run record identifies its executed source, command, platform, raw results
 and coverage limits. The focused results were produced on separate source
 revisions; they must not be added together or described as a passing execution
 of the final composed branch.
@@ -16,6 +16,7 @@ of the final composed branch.
 | Area | Change now in the contribution | Existing execution and scope |
 |---|---|---|
 | Windows disk space and WAL | Portable disk lookup and checked reset through a separate writable handle | Eight selected native groups passed at `006bc101`; the original record follows below |
+| [Raft resource lifecycle](https://github.com/woahwhattheheck/chronicle/commit/f1c21406fbf6b6ba69ef4a71235c1b03e810a5cd) | Close log handles after failed construction and pre-start shutdown; make Stop idempotent and reject restart after shutdown | [Native run 37192245119](https://github.com/woahwhattheheck/chronicle/actions/runs/37192245119) compared `cf57d7c` with `f1c21406`: three lifecycle failures plus one passing normal-shutdown control became four passing subcases; the three executed blobs are retained in `efb80aef` |
 | [Digital Twin cleanup](WINDOWS_DIGITALTWIN.md) | Close the caller-owned database before temporary-directory cleanup | The same ten selected native cases failed before and passed after the fixture repair |
 | [Continuous-query registration](WINDOWS_CONTINUOUSQUERY.md) | Unique engine-local handles and capacity checks under the registry lock | Four selected native groups passed; query retention and concurrent admission are covered |
 | [OTel lifecycle](WINDOWS_OTEL_LIFECYCLE.md) | Synchronize enqueue with shutdown; remove an invalid positive-initial-uptime assumption | Two selected native groups passed; the send/close panic was reproduced before the fix |
