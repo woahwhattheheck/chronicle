@@ -1,6 +1,8 @@
 package chronicle
 
 import (
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -149,6 +151,13 @@ More text here
 		t.Error("expected cells")
 	}
 
+	if len(nb.Cells) != 4 {
+		t.Fatalf("expected four cells, including prose after the query; got %d", len(nb.Cells))
+	}
+	if nb.Cells[2].Type != CellMarkdown || !strings.Contains(nb.Cells[2].Source, "More text here") {
+		t.Fatalf("lost markdown after fenced query: %#v", nb.Cells[2])
+	}
+
 	// Should have markdown, query, markdown, and chart cells
 	hasQuery := false
 	hasChart := false
@@ -192,5 +201,51 @@ func TestNotebookEngineMaxCells(t *testing.T) {
 	err := engine.AddCell(nb.ID, NotebookCell{ID: "c3", Type: CellMarkdown, Source: "c"})
 	if err == nil {
 		t.Error("expected max cells error")
+	}
+}
+
+// Multiple engines and callers may allocate within one Windows clock tick.
+func TestNotebookGeneratedIDs(t *testing.T) {
+	const workers, each = 8, 16
+	ids := make(chan string, workers*each*3)
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			engine := NewNotebookEngine(nil, DefaultNotebookConfig())
+			for n := 0; n < each; n++ {
+				nb, err := engine.CreateNotebook(Notebook{Title: "retained"})
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				ids <- nb.ID
+				for c := 0; c < 2; c++ {
+					if err := engine.AddCell(nb.ID, NotebookCell{Type: CellMarkdown, Source: "text"}); err != nil {
+						t.Error(err)
+						return
+					}
+				}
+				for _, cell := range nb.Cells {
+					ids <- cell.ID
+				}
+			}
+			if got := len(engine.ListNotebooks()); got != each {
+				t.Errorf("lost notebooks: got %d, want %d", got, each)
+			}
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	seen := make(map[string]bool)
+	for id := range ids {
+		if seen[id] {
+			t.Errorf("duplicate generated ID: %s", id)
+		}
+		seen[id] = true
+	}
+	if got := len(seen); got != workers*each*3 {
+		t.Errorf("distinct notebook/cell IDs: got %d, want %d", got, workers*each*3)
 	}
 }

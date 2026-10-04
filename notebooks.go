@@ -6,8 +6,12 @@ import (
 	"html"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+// A process-wide sequence keeps generated IDs distinct when clock ticks repeat.
+var notebookIDSequence atomic.Uint64
 
 // NotebookCellType represents the type of a notebook cell.
 type NotebookCellType string
@@ -96,7 +100,7 @@ func (ne *NotebookEngine) CreateNotebook(nb Notebook) (*Notebook, error) {
 		return nil, fmt.Errorf("max notebooks reached (%d)", ne.config.MaxNotebooks)
 	}
 	if nb.ID == "" {
-		nb.ID = fmt.Sprintf("nb-%d", time.Now().UnixNano())
+		nb.ID = fmt.Sprintf("nb-%d-%d", time.Now().UnixNano(), notebookIDSequence.Add(1))
 	}
 	if nb.Title == "" {
 		nb.Title = "Untitled Notebook"
@@ -156,7 +160,7 @@ func (ne *NotebookEngine) AddCell(notebookID string, cell NotebookCell) error {
 		return fmt.Errorf("max cells reached (%d)", ne.config.MaxCells)
 	}
 	if cell.ID == "" {
-		cell.ID = fmt.Sprintf("cell-%d", time.Now().UnixNano())
+		cell.ID = fmt.Sprintf("cell-%d-%d", time.Now().UnixNano(), notebookIDSequence.Add(1))
 	}
 	nb.Cells = append(nb.Cells, cell)
 	nb.UpdatedAt = time.Now()
@@ -343,7 +347,8 @@ func (ne *NotebookEngine) ParseMarkdown(content string) (*Notebook, error) {
 				codeLines = []string{}
 				continue
 			}
-			// End code block
+			// End code block; subsequent prose starts a new markdown cell.
+			currentCell = nil
 			inCodeBlock = false
 			source := strings.Join(codeLines, "\n")
 			cellType := CellQuery
