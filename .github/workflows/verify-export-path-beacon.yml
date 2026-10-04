@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 2
+        fetch-depth: 3
         persist-credentials: false
     - uses: actions/setup-go@v5
       with:
@@ -39,7 +39,7 @@ jobs:
         evidence.mkdir()
         base = os.environ['BASE_SHA']
         candidate_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-        assert subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip() == base
+        subprocess.run(['git', 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
         source_file = Path('export.go')
         candidate = source_file.read_bytes()
         baseline = subprocess.check_output(['git', 'show', base + ':export.go'])
@@ -70,7 +70,7 @@ jobs:
             source_file.write_bytes(candidate)
         assert before_exit == 1 and {'TestValidateExportPath', 'TestExporter_SensitivePathRejection'}.issubset(before['failed']), 'Baseline did not reproduce the retained export guard failures'
         assert 'TestExporter_CSV' in before['passed'], 'Baseline allowed export control failed'
-        formatting = subprocess.check_output(['gofmt', '-l', 'export.go', 'export_path_windows_test.go'], text=True)
+        formatting = subprocess.check_output(['gofmt', '-l', 'export.go', 'export_test.go', 'export_path_windows_test.go'], text=True)
         assert not formatting.strip(), 'Unexpected gofmt delta: ' + formatting
         after_exit, after_events, after = execute('after')
         assert after_exit == 0 and not after['failed'] and not after['skipped']
