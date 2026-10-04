@@ -360,7 +360,8 @@ func (ne *NotebookEngine) ParseMarkdown(content string) (*Notebook, error) {
 				codeLines = []string{}
 				continue
 			}
-			// End code block
+			// End code block; subsequent prose starts a new markdown cell.
+			currentCell = nil
 			inCodeBlock = false
 			source := strings.Join(codeLines, "\n")
 			cellType := CellQuery
