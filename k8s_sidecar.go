@@ -450,13 +450,13 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 
 	// Find metric name and labels
 	braceIdx := strings.Index(line, "{")
-	spaceIdx := strings.Index(line, " ")
+	spaceIdx := strings.IndexAny(line, " \t")
 
 	if braceIdx != -1 && braceIdx < spaceIdx {
 		// Has labels
 		point.Metric = line[:braceIdx]
 
-		closeBraceIdx := strings.Index(line, "}")
+		closeBraceIdx := sidecarLabelSetEnd(line, braceIdx)
 		if closeBraceIdx == -1 {
 			return point, errors.New("malformed labels")
 		}
@@ -491,7 +491,32 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 	return point, nil
 }
 
-var sidecarLabelRegex = regexp.MustCompile(`(\w+)="([^"]*)"`)
+// sidecarLabelSetEnd ignores braces inside quoted label values. A backslash
+// escapes the next byte only within a quoted value.
+func sidecarLabelSetEnd(line string, open int) int {
+	quoted := false
+	for i := open + 1; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			if quoted {
+				i++
+			}
+		case '"':
+			quoted = !quoted
+		case '}':
+			if !quoted {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+var sidecarLabelRegex = regexp.MustCompile(`(\w+)="([^"\\]*(?:\\.[^"\\]*)*)"`)
+
+// Replacer consumes the input once, so an escaped backslash followed by n does
+// not become a newline on a second decoding pass.
+var sidecarLabelUnescaper = strings.NewReplacer(`\\`, `\`, `\"`, `"`, `\n`, "\n")
 
 func (s *K8sSidecar) parseLabels(labelStr string) map[string]string {
 	labels := make(map[string]string)
@@ -502,7 +527,11 @@ func (s *K8sSidecar) parseLabels(labelStr string) map[string]string {
 
 	for _, match := range matches {
 		if len(match) == 3 {
-			labels[match[1]] = match[2]
+			value := match[2]
+			if strings.Contains(value, "\\") {
+				value = sidecarLabelUnescaper.Replace(value)
+			}
+			labels[match[1]] = value
 		}
 	}
 
