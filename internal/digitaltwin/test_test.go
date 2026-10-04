@@ -748,6 +748,11 @@ func setupTestDB(t *testing.T) *chronicle.DB {
 	if err != nil {
 		t.Fatalf("failed to open test db: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("failed to close test db: %v", err)
+		}
+	})
 	return db
 }
 
