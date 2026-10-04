@@ -136,7 +136,7 @@ func run(ctx context.Context, cfg options) (result error) {
 			RetentionDuration: cfg.retention,
 			BufferSize:        5000,
 			SyncInterval:      2 * time.Second,
-			HTTP:              chronicle.HTTPConfig{
+			HTTP: chronicle.HTTPConfig{
 				HTTPEnabled:     true,
 				HTTPPort:        cfg.httpPort,
 				HTTPBindAddress: cfg.httpBindAddress,

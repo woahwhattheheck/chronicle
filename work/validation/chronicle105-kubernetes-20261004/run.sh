@@ -50,6 +50,9 @@ kind version > "$EVIDENCE_DIR/kind-version.txt"
 kubectl version --client -o json > "$EVIDENCE_DIR/kubectl-version.json"
 docker version > "$EVIDENCE_DIR/docker-version.txt"
 
+docker run --rm --network=none --read-only -v "$candidate_dir:/src:ro" -w /src --entrypoint gofmt golang:1.24-alpine -d config.go http_server.go examples/kubernetes-sidecar/main.go | tee "$EVIDENCE_DIR/gofmt.diff"
+test ! -s "$EVIDENCE_DIR/gofmt.diff"
+
 for stage in baseline candidate; do
   source_dir="$baseline_dir"
   if [[ "$stage" == candidate ]]; then source_dir="$candidate_dir"; fi
@@ -59,9 +62,6 @@ for stage in baseline candidate; do
   printf '%s\n' "$SECONDS" > "$EVIDENCE_DIR/$stage-build-seconds.txt"
   docker image inspect --format '{{json .}}' "$image" > "$EVIDENCE_DIR/$stage-image.json"
 done
-
-docker run --rm --network=none --read-only -v "$candidate_dir:/src:ro" -w /src --entrypoint gofmt golang:1.24-alpine -l config.go http_server.go examples/kubernetes-sidecar/main.go > "$EVIDENCE_DIR/gofmt.txt"
-test ! -s "$EVIDENCE_DIR/gofmt.txt"
 
 timeout 240 kind create cluster --name "$cluster_name" --image kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865 --wait 120s 2>&1 | tee "$EVIDENCE_DIR/cluster-create.log"
 kind load docker-image --name "$cluster_name" chronicle-kubernetes-sidecar:baseline chronicle-kubernetes-sidecar:candidate
