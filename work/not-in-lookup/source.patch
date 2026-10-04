@@ -1,0 +1,100 @@
+--- a/query.go
++++ b/query.go
+@@ -79,14 +79,30 @@
+ 	// compiledRe caches the compiled regex for TagOpRegex/TagOpNotRegex.
+ 	// Set by prepareTagFilters before query execution.
+ 	compiledRe *regexp.Regexp
++
++	// excludedValues caches larger NOT IN lists for constant-time membership.
++	// Rebuilt by prepareTagFilters for every execution; never serialized.
++	excludedValues map[string]struct{}
+ }
+ 
+ const maxTagFilterRegexLen = 1024
+ 
+-// prepareTagFilters pre-compiles regex patterns in tag filters.
+-// Must be called before query execution to avoid per-series compilation.
++// Small lists are cheaper to scan and do not need a per-query allocation.
++const minNotInLookupValues = 16
++
++// prepareTagFilters prepares reusable regex and exclusion lookups.
++// Must be called before query execution to avoid repeated per-series work.
+ func prepareTagFilters(filters []TagFilter) error {
+ 	for i := range filters {
++		// Queries can be reused after their operator or values change.
++		filters[i].excludedValues = nil
++		if filters[i].Op == TagOpNotIn && len(filters[i].Values) >= minNotInLookupValues {
++			excluded := make(map[string]struct{}, len(filters[i].Values))
++			for _, value := range filters[i].Values {
++				excluded[value] = struct{}{}
++			}
++			filters[i].excludedValues = excluded
++		}
+ 		if (filters[i].Op == TagOpRegex || filters[i].Op == TagOpNotRegex) && len(filters[i].Values) > 0 {
+ 			pattern := filters[i].Values[0]
+ 			if len(pattern) > maxTagFilterRegexLen {
+@@ -149,7 +165,7 @@
+ 		return nil, newQueryError(QueryErrorTypeInvalid, "metric name is required", q, nil)
+ 	}
+ 
+-	// Pre-compile regex tag filters once before scanning partitions
++	// Prepare tag filters once before scanning partitions
+ 	if len(q.TagFilters) > 0 {
+ 		if err := prepareTagFilters(q.TagFilters); err != nil {
+ 			return nil, newQueryError(QueryErrorTypeInvalid, err.Error(), q, err)
+--- a/tags.go
++++ b/tags.go
+@@ -68,12 +68,8 @@
+ 			}
+ 		case TagOpNotIn:
+ 			// Missing tags are treated as not in the exclusion set (match).
+-			if ok {
+-				for _, v := range filter.Values {
+-					if value == v {
+-						return false
+-					}
+-				}
++			if ok && tagFilterExcludes(filter, value) {
++				return false
+ 			}
+ 		case TagOpRegex:
+ 			if len(filter.Values) == 0 {
+@@ -112,6 +108,21 @@
+ 	return true
+ }
+ 
++// tagFilterExcludes uses a query-prepared lookup when available. Direct
++// matcher callers and small lists retain the same allocation-free scan.
++func tagFilterExcludes(filter TagFilter, value string) bool {
++	if filter.excludedValues != nil {
++		_, excluded := filter.excludedValues[value]
++		return excluded
++	}
++	for _, excluded := range filter.Values {
++		if value == excluded {
++			return true
++		}
++	}
++	return false
++}
++
+ // copyTags creates a deep copy of a tag map.
+ func copyTags(tags map[string]string) map[string]string {
+ 	if len(tags) == 0 {
+--- a/partition_query.go
++++ b/partition_query.go
+@@ -259,12 +259,8 @@
+ 				return false
+ 			}
+ 		case TagOpNotIn:
+-			if ok {
+-				for _, v := range filter.Values {
+-					if value == v {
+-						return false
+-					}
+-				}
++			if ok && tagFilterExcludes(filter, value) {
++				return false
+ 			}
+ 		case TagOpRegex:
+ 			if len(filter.Values) == 0 {

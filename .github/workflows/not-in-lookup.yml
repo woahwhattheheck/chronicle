@@ -1,0 +1,61 @@
+name: NOT IN lookup paired benchmark
+on:
+  push:
+    branches: [gf-payload/notin-lookup-20261004]
+permissions:
+  contents: read
+concurrency:
+  group: notin-lookup-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  paired:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Compare the original and lookup implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/notin-lookup"
+          mkdir -p "$out"
+          git rev-parse HEAD > "$out/control-sha.txt"
+          printf '%s\n' '9b4578466d12a2dc8739210f845d4070504a77e4' > "$out/baseline-source-sha.txt"
+          go version > "$out/environment.txt"
+          go env GOOS GOARCH CGO_ENABLED GOFLAGS >> "$out/environment.txt"
+          test "$(git hash-object query.go)" = b2de469c54f1210f5cc40b3fe924b8116699a454
+          test "$(git hash-object tags.go)" = cda435899a7b385f6db0a15a2835329d3640f0fa
+          test "$(git hash-object partition_query.go)" = af9d261fc54dbbb394a5f7576a375e38d7b87b3e
+          test "$(git hash-object tag_not_in_lookup_test.go)" = c703ccdec4250150ce36c70ccde7fa28efa22ba8
+          cp tag_not_in_lookup_test.go "$out/"
+          cp work/not-in-lookup/source.patch "$out/"
+          selection='^(TestTagNotInLookup|TestTagOpNotIn|TestParseNotIn|TestTagMembershipPresence|TestPredicatePushDown)'
+          printf '%s\n' "go test -count=1 -v -run '$selection' -bench '^BenchmarkTagNotInLookup' -benchtime=200ms ." > "$out/command.txt"
+          go test -count=1 -v -run "$selection" -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/baseline.log"
+          git apply --check work/not-in-lookup/source.patch
+          git apply work/not-in-lookup/source.patch
+          test "$(git hash-object query.go)" = b8ed9894863ae1c2a2a15f4e6e67f79523206c11
+          test "$(git hash-object tags.go)" = 6be6ac12601e1ce24f44ff2df94c3996c2841055
+          test "$(git hash-object partition_query.go)" = 13f6724f38b7e4efedb86c0763e8102888fdecdb
+          test -z "$(gofmt -l query.go tags.go partition_query.go tag_not_in_lookup_test.go)"
+          go test -count=1 -v -run "$selection" -bench '^BenchmarkTagNotInLookup' -benchtime=200ms . 2>&1 | tee "$out/candidate.log"
+          go test -count=1 ./internal/query/ 2>&1 | tee "$out/parser.log"
+          cp query.go tags.go partition_query.go "$out/"
+          (cd "$out" && sha256sum *.go *.log *.txt source.patch > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notin-lookup-paired
+          path: ${{ runner.temp }}/notin-lookup
+          if-no-files-found: error
+          retention-days: 14
