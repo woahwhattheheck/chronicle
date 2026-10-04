@@ -102,8 +102,9 @@ type K8sSidecar struct {
 	server *http.Server
 
 	// Scrape targets
-	targets   []ScrapeTarget
-	targetsMu sync.RWMutex
+	targets     []ScrapeTarget
+	targetIndex map[sidecarTargetKey]struct{}
+	targetsMu   sync.RWMutex
 
 	// Pod metadata
 	podInfo *PodInfo
@@ -117,6 +118,12 @@ type K8sSidecar struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
+}
+
+// sidecarTargetKey preserves the existing exact address/port identity.
+type sidecarTargetKey struct {
+	address string
+	port    int
 }
 
 // ScrapeTarget represents a metrics endpoint to scrape.
@@ -643,14 +650,29 @@ func (s *K8sSidecar) AddTarget(target ScrapeTarget) {
 	s.targetsMu.Lock()
 	defer s.targetsMu.Unlock()
 
-	// Check for duplicate
-	for _, t := range s.targets {
-		if t.Address == target.Address && t.Port == target.Port {
+	if s.targetIndex == nil {
+		// The normal localhost-only sidecar needs no map allocation.
+		if len(s.targets) < 32 {
+			for _, t := range s.targets {
+				if t.Address == target.Address && t.Port == target.Port {
+					return
+				}
+			}
+			s.targets = append(s.targets, target)
 			return
 		}
+		// Include targets seeded by the constructor before switching to lookup.
+		s.targetIndex = make(map[sidecarTargetKey]struct{}, len(s.targets)+1)
+		for _, t := range s.targets {
+			s.targetIndex[sidecarTargetKey{t.Address, t.Port}] = struct{}{}
+		}
 	}
-
+	key := sidecarTargetKey{target.Address, target.Port}
+	if _, exists := s.targetIndex[key]; exists {
+		return
+	}
 	s.targets = append(s.targets, target)
+	s.targetIndex[key] = struct{}{}
 }
 
 // RemoveTarget removes a scrape target.
@@ -665,6 +687,10 @@ func (s *K8sSidecar) RemoveTarget(address string, port int) {
 		}
 	}
 	s.targets = filtered
+	delete(s.targetIndex, sidecarTargetKey{address, port})
+	if len(filtered) == 0 {
+		s.targetIndex = nil
+	}
 }
 
 // GetTargets returns all scrape targets.
