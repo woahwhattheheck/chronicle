@@ -1,0 +1,112 @@
+name: Grafana stored Chronicle data
+on:
+  push:
+    branches: [validation/chronicle106-direct-data-rivet1004]
+permissions:
+  contents: read
+jobs:
+  stored-data-query:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: rivet106-${{ github.run_id }}
+      COMPOSE_FILE: examples/docker-compose-monitoring/docker-compose.yml
+      SOURCE_SHA: 4c63ceea362fbf482347a02d44c0a12ebd0b5b47
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4c63ceea362fbf482347a02d44c0a12ebd0b5b47
+          persist-credentials: false
+      - name: Start the maintained demo
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git ls-files -s examples/docker-compose-monitoring > evidence/source-blobs.txt
+          docker compose version > evidence/compose-version.txt
+          docker compose up --build -d 2>&1 | tee evidence/start.log
+      - name: Query the new panel through the actual Grafana backend
+        shell: python
+        run: |
+          import base64, json, math, os, time
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+          root = 'http://127.0.0.1:3000'
+          auth = 'Basic ' + base64.b64encode(b'admin:chronicle').decode()
+          def request(path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = Request(root + path, data=data, headers={'Authorization': auth, 'Content-Type': 'application/json', 'Accept': 'application/json'})
+              with urlopen(req, timeout=15) as response:
+                  return json.load(response)
+          def wait_for(function, label, timeout=180):
+              deadline = time.monotonic() + timeout
+              last = None
+              while time.monotonic() < deadline:
+                  try:
+                      result = function()
+                      if result:
+                          return result
+                  except (HTTPError, URLError, TimeoutError, ValueError, KeyError) as exc:
+                      last = str(exc)
+                  time.sleep(2)
+              raise RuntimeError(label + ': ' + str(last))
+          wait_for(lambda: request('/api/health').get('database') == 'ok', 'Grafana readiness')
+          datasource = request('/api/datasources/uid/Chronicle')
+          assert datasource['uid'] == 'Chronicle' and datasource['type'] == 'prometheus'
+          assert datasource['url'] == 'http://chronicle:8086'
+          assert datasource['jsonData']['httpMethod'] == 'GET'
+          dashboard = request('/api/dashboards/uid/chronicle-compose-overview')
+          panel = next(p for p in dashboard['dashboard']['panels'] if p.get('id') == 3)
+          assert panel['datasource']['uid'] == 'Chronicle'
+          expression = panel['targets'][0]['expr']
+          assert expression == 'demo_cpu_percent{host="compose",env="dev"}'
+          assert len(dashboard['dashboard']['panels']) == 3
+          query = dict(panel['targets'][0])
+          query.update({'datasource': {'type': 'prometheus', 'uid': 'Chronicle'}, 'format': 'time_series', 'intervalMs': 5000, 'maxDataPoints': 1000})
+          payload = {'from': 'now-5m', 'to': 'now', 'queries': [query]}
+          responses = []
+          def query_stored_values():
+              response = request('/api/ds/query', payload)
+              responses.append(response)
+              result = response['results']['A']
+              if result.get('error'):
+                  raise RuntimeError('Grafana backend query failed: ' + str(result))
+              samples = []
+              for frame in result.get('frames', []):
+                  fields = frame['schema']['fields']
+                  columns = frame['data']['values']
+                  for field, values in zip(fields, columns):
+                      if field.get('type') != 'number':
+                          continue
+                      labels = field.get('labels', {})
+                      assert labels.get('host') == 'compose' and labels.get('env') == 'dev', labels
+                      samples.extend(v for v in values if v is not None)
+              if not samples:
+                  return None
+              assert all(isinstance(v, (float, int)) and not isinstance(v, bool) and math.isfinite(v) and 20 <= v <= 34 for v in samples), samples
+              return samples
+          samples = wait_for(query_stored_values, 'stored demo values')
+          evidence = Path('evidence')
+          for name, value in [('datasource', datasource), ('dashboard', dashboard), ('request', payload), ('query-responses', responses)]:
+              (evidence / (name + '.json')).write_text(json.dumps(value, indent=2)+'\n')
+          receipt = {'source_commit': os.environ['SOURCE_SHA'], 'scenario': 'maintained metric-gen -> Chronicle database -> configured Grafana backend query -> numeric panel frames', 'data_source': 'Chronicle', 'http_method': 'GET', 'sample_count': len(samples), 'sample_values': samples, 'query_attempts': len(responses), 'result': 'passed', 'limits': 'No browser rendering, external notification, complete Prometheus API compatibility, full suite, or replay of earlier nineteen-check acceptance run.'}
+          (evidence / 'receipt.json').write_text(json.dumps(receipt, indent=2)+'\n')
+          print(json.dumps(receipt, indent=2))
+      - name: Capture service diagnostics
+        if: always()
+        run: |
+          mkdir -p evidence
+          docker compose logs --no-color > evidence/services.log 2>&1 || true
+          docker compose ps --all > evidence/containers.txt 2>&1 || true
+          git diff --exit-code > evidence/source-diff.txt
+      - name: Remove only this run's disposable stack
+        if: always()
+        run: docker compose down -v --remove-orphans
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chronicle106-direct-data-evidence
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
