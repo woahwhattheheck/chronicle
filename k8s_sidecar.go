@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -458,48 +459,48 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 		Timestamp: defaultTs,
 	}
 
-	// Find metric name and labels
+	// Find metric name and labels.
 	braceIdx := strings.Index(line, "{")
 	spaceIdx := strings.IndexAny(line, " \t")
+	var sample string
 
 	if braceIdx != -1 && braceIdx < spaceIdx {
-		// Has labels
 		point.Metric = line[:braceIdx]
-
 		closeBraceIdx := sidecarLabelSetEnd(line, braceIdx)
 		if closeBraceIdx == -1 {
 			return point, errors.New("malformed labels")
 		}
-
-		labelStr := line[braceIdx+1 : closeBraceIdx]
-		point.Tags = s.parseLabels(labelStr)
-
-		// Parse value
-		rest := strings.TrimSpace(line[closeBraceIdx+1:])
-		parts := strings.Fields(rest)
-		if len(parts) >= 1 {
-			value, err := strconv.ParseFloat(parts[0], 64)
-			if err != nil {
-				return point, err
-			}
-			point.Value = value
-		}
+		point.Tags = s.parseLabels(line[braceIdx+1 : closeBraceIdx])
+		sample = line[closeBraceIdx+1:]
 	} else if spaceIdx != -1 {
-		// No labels
 		point.Metric = line[:spaceIdx]
-		rest := line[spaceIdx+1:]
-		parts := strings.Fields(rest)
-		if len(parts) >= 1 {
-			value, err := strconv.ParseFloat(parts[0], 64)
-			if err != nil {
-				return point, err
-			}
-			point.Value = value
-		}
+		sample = line[spaceIdx+1:]
 	} else {
 		return point, errors.New("invalid metric line")
 	}
 
+	// Prometheus text samples require a value and allow one millisecond timestamp.
+	parts := strings.Fields(sample)
+	if len(parts) == 0 || len(parts) > 2 {
+		return point, errors.New("expected metric value and optional timestamp")
+	}
+	value, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return point, err
+	}
+	point.Value = value
+	if len(parts) == 2 {
+		timestamp, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return point, fmt.Errorf("invalid metric timestamp: %w", err)
+		}
+		// Point stores nanoseconds; reject an unrepresentable time before multiplying.
+		const nanosPerMilli = int64(time.Millisecond)
+		if timestamp > math.MaxInt64/nanosPerMilli || timestamp < math.MinInt64/nanosPerMilli {
+			return point, errors.New("metric timestamp exceeds nanosecond range")
+		}
+		point.Timestamp = timestamp * nanosPerMilli
+	}
 	return point, nil
 }
 
