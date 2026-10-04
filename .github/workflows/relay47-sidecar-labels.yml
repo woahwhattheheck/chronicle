@@ -15,7 +15,6 @@ jobs:
       GOMAXPROCS: '2'
       GOFLAGS: '-p=2'
       SOURCE: 584818a0609718005e2de36384bd723d5d4df153
-      EVIDENCE: ${{ runner.temp }}/sidecar-label-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +31,8 @@ jobs:
       - name: Reproduce and repair the actual package
         working-directory: subject
         shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/sidecar-label-evidence
         run: |
           set -euo pipefail
           mkdir -p "$EVIDENCE"
@@ -68,5 +69,5 @@ jobs:
         if: always()
         with:
           name: chronicle105-labels-relay47
-          path: ${{ env.EVIDENCE }}
+          path: ${{ runner.temp }}/sidecar-label-evidence
           if-no-files-found: error
