@@ -1,0 +1,55 @@
+name: Chronicle Windows continuous-query acceptance
+on:
+  push:
+    branches: [validation/chronicle104-cq-38ec-20261004]
+permissions:
+  contents: write
+concurrency:
+  group: chronicle104-cq-38ec
+  cancel-in-progress: false
+jobs:
+  focused:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+    steps:
+      - name: Preserve repository source bytes
+        shell: pwsh
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: woahwhattheheck/chronicle
+          ref: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+          path: subject
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache-dependency-path: subject/go.sum
+      - name: Reproduce and repair only continuousquery
+        shell: pwsh
+        run: python controller/repair.py subject evidence
+      - name: Retain tested product commit on a new candidate ref only
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import base64, os, pathlib, subprocess
+          sha = pathlib.Path('evidence/candidate.txt').read_text().strip()
+          env = dict(os.environ)
+          env['GIT_CONFIG_COUNT'] = '1'
+          env['GIT_CONFIG_KEY_0'] = 'http.https://github.com/.extraheader'
+          env['GIT_CONFIG_VALUE_0'] = 'AUTHORIZATION: basic ' + base64.b64encode(('x-access-token:' + os.environ['GH_TOKEN']).encode()).decode()
+          subprocess.run(['git','push','https://github.com/woahwhattheheck/chronicle.git',sha+':refs/heads/candidate/chronicle104-cq-38ec-20261004'], cwd='subject', env=env, check=True)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chronicle104-cq-38ec-evidence
+          path: evidence
+          retention-days: 14
