@@ -1,0 +1,42 @@
+name: Native Windows Raft resource repair
+on:
+  push:
+    branches: [validation/chronicle104-raft-stop-relay5692]
+permissions:
+  contents: write
+concurrency:
+  group: chronicle104-raft-stop-relay5692
+  cancel-in-progress: false
+jobs:
+  native-windows:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: control
+          persist-credentials: false
+      - name: Preserve repository line endings
+        shell: pwsh
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          ref: cf57d7c658acfb91f23b4e1ccc66794187607ce0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: false
+      - name: Compare original and repaired resource ownership
+        shell: pwsh
+        run: python control/validate.py source evidence
+      - name: Retain source-bound results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronicle104-raft-stop-relay5692
+          path: evidence/
+          retention-days: 14
