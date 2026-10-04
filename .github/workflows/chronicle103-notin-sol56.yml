@@ -1,0 +1,37 @@
+name: Chronicle103 NOT IN lookup validation
+on:
+  push:
+    branches:
+      - sol56/chronicle103-notin-lookup-20261004
+permissions:
+  contents: read
+concurrency:
+  group: chronicle103-notin-sol56
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+          cache: true
+      - name: Focused correctness
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l query.go tags.go partition_query.go tag_not_in_lookup_test.go)"
+          go test -count=1 -run '^(TestNotInLookup|TestTagOpNotIn|TestParseNotIn|TestTagMembershipPresence|TestPredicatePushDown)' .
+          go test -count=1 ./internal/query/
+      - name: Focused benchmark
+        run: |
+          set -euo pipefail
+          go test -run '^$' -bench '^BenchmarkNotIn(Lookup4096|PrepareAndMatch4096)$' -benchmem -benchtime=300ms -count=3 .
