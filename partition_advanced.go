@@ -107,7 +107,9 @@ func (rp *RangePartitioner) Partition(tagValue string) int {
 // PartitionPoints distributes points across range partitions.
 func (rp *RangePartitioner) PartitionPoints(points []Point) [][]Point {
 	rp.mu.RLock()
-	n := len(rp.boundaries) + 1
+	// SetBoundaries replaces its copied slice; keep one immutable generation.
+	boundaries := rp.boundaries
+	n := len(boundaries) + 1
 	tagKey := rp.tagKey
 	rp.mu.RUnlock()
 
@@ -121,10 +123,7 @@ func (rp *RangePartitioner) PartitionPoints(points []Point) [][]Point {
 		if p.Tags != nil {
 			tagVal = p.Tags[tagKey]
 		}
-		idx := rp.Partition(tagVal)
-		if idx >= n {
-			idx = n - 1
-		}
+		idx := sort.SearchStrings(boundaries, tagVal)
 		buckets[idx] = append(buckets[idx], p)
 	}
 	return buckets
