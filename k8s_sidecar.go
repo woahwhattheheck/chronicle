@@ -399,7 +399,7 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readSidecarScrapeBody(resp.Body, maxSidecarScrapeBodyBytes)
 	if err != nil {
 		s.recordScrapeError(err)
 		return
@@ -428,6 +428,22 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 	s.stats.LastScrapeDuration = time.Since(start)
 	s.stats.LastScrapeError = ""
 	s.statsMu.Unlock()
+}
+
+const maxSidecarScrapeBodyBytes int64 = 8 << 20 // 8 MiB
+
+func readSidecarScrapeBody(r io.Reader, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, errors.New("metrics response byte limit must be positive")
+	}
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("metrics response exceeds %d byte limit", maxBytes)
+	}
+	return body, nil
 }
 
 func (s *K8sSidecar) parsePrometheusMetrics(data string, extraLabels map[string]string) []Point {
