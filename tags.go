@@ -68,12 +68,8 @@ func matchSeriesTagFilters(seriesTags map[string]string, filters []TagFilter) bo
 			}
 		case TagOpNotIn:
 			// Missing tags are treated as not in the exclusion set (match).
-			if ok {
-				for _, v := range filter.Values {
-					if value == v {
-						return false
-					}
-				}
+			if ok && tagFilterExcludes(filter, value) {
+				return false
 			}
 		case TagOpRegex:
 			if len(filter.Values) == 0 {
@@ -110,6 +106,21 @@ func matchSeriesTagFilters(seriesTags map[string]string, filters []TagFilter) bo
 		}
 	}
 	return true
+}
+
+// tagFilterExcludes uses a query-prepared lookup when available. Direct
+// matcher callers and small lists retain the same allocation-free scan.
+func tagFilterExcludes(filter TagFilter, value string) bool {
+	if filter.excludedValues != nil {
+		_, excluded := filter.excludedValues[value]
+		return excluded
+	}
+	for _, excluded := range filter.Values {
+		if value == excluded {
+			return true
+		}
+	}
+	return false
 }
 
 // copyTags creates a deep copy of a tag map.
