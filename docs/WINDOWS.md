@@ -6,7 +6,7 @@ Bounty #9 (`docs/BOUNTY_PROGRAM.md`): run Chronicle on Windows and document comp
 
 The original [PR #104](https://github.com/josedab/chronicle/pull/104) now includes
 the native WAL repair and the follow-up changes below. Product checkpoint:
-`efb80aefe3af26183e765607ea013ca2d3ab2b1b`. This index changes documentation only.
+`592c97242cfe63188c0d73040026c414ba2efd79`. This index changes documentation only.
 
 Each linked report or native-run record identifies its executed source, command, platform, raw results
 and coverage limits. The focused results were produced on separate source
@@ -27,6 +27,7 @@ of the final composed branch.
 | [Multimodal identities](WINDOWS_MULTIMODAL_IDS.md) | Preserve distinct generated log/span IDs on repeated clock ticks | The same four selected native cases failed before and passed after; explicit producer IDs remain supported |
 | [Notebook parser and identity composition](WINDOWS_NOTEBOOKS.md) | Retain prose after fenced queries and preserve the separately integrated ID implementation | The parser and its assertion match a 15-group native candidate; that candidate used a different ID implementation, so the combined branch has no aggregate notebook pass claim |
 | [Other clock and delta-sync repairs](WINDOWS_CLOCK_FIXES.md) | Preserve notebook/cell, alert, batch and explanation identities; retain request lifetime and queued work | A focused local notebook replay is recorded. Alert, delta-sync and explanation changes have no new native execution result |
+| Time-series diff timing assertion | Accept a legitimate zero elapsed measurement from `time.Since` on timer-limited platforms and verify `ComputedAt` instead; production diff timing and aggregate statistics are unchanged | Native run [37205348415](https://github.com/woahwhattheheck/chronicle/actions/runs/37205348415) at `6660c179` observed zero and failed only this assertion in the selected group. Focused Windows run [37211147854](https://github.com/woahwhattheheck/chronicle/actions/runs/37211147854) / job `111462438471` passed `TestTSDiffMerge_DiffBranches` on Go 1.24.13 windows/amd64 with CGO disabled; the executed test blob `316109430ddf3fa8e9954879f08d0b616ebe93fe` is identical to the published PR104 blob |
 
 The repository-wide failure inventory below is the historical observation at
 `006bc101`, before these follow-ups. It remains evidence of that run; it is not
