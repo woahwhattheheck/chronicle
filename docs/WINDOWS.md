@@ -6,7 +6,7 @@ Bounty #9 (`docs/BOUNTY_PROGRAM.md`): run Chronicle on Windows and document comp
 
 The original [PR #104](https://github.com/josedab/chronicle/pull/104) now includes
 the native WAL repair and the follow-up changes below. Product checkpoint:
-`0c6cb51397f4c564e6c8595139796b04bb144b95`. This index changes documentation only.
+`313278c21b3f3714293772389fe3fabdc97a2c0f`. This index changes documentation only.
 
 Each linked report identifies its executed source, command, platform, raw results
 and coverage limits. The focused results were produced on separate source
@@ -20,6 +20,7 @@ of the final composed branch.
 | [Continuous-query registration](WINDOWS_CONTINUOUSQUERY.md) | Unique engine-local handles and capacity checks under the registry lock | Four selected native groups passed; query retention and concurrent admission are covered |
 | [OTel lifecycle](WINDOWS_OTEL_LIFECYCLE.md) | Synchronize enqueue with shutdown; remove an invalid positive-initial-uptime assumption | Two selected native groups passed; the send/close panic was reproduced before the fix |
 | [Streaming SQL registration](WINDOWS_STREAMING_SQL.md) | Preserve distinct query handles and enforce the concurrent capacity limit | Four selected native groups passed, including both capacity subcases |
+| [Flight SQL statement tickets](WINDOWS_FLIGHTSQL.md) | Allocate random statement and prepared-statement IDs under the registry lock; place query-fixture rows inside the exclusive time range | Two selected native groups passed, preserving SQL bindings, closed-ticket invalidation and fresh-instance separation; the report retains the failing baseline and final source pins |
 | [Export paths](WINDOWS_EXPORT_PATH.md) | Apply the existing sensitive-directory policy using Windows path rules | Four selected native groups passed, including real CSV creation and the Windows path table |
 | [Configuration migration](WINDOWS_CONFIG_MIGRATION.md) | Initialize valid unrelated storage defaults in the maintained fixture | All 16 migration subcases passed natively; production validation remains unchanged |
 | [Multimodal identities](WINDOWS_MULTIMODAL_IDS.md) | Preserve distinct generated log/span IDs on repeated clock ticks | The same four selected native cases failed before and passed after; explicit producer IDs remain supported |
