@@ -60,20 +60,22 @@ func (idx *Index) FindPartitions(start, end int64) []*Partition {
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()
 
-	if len(idx.partitions) == 0 {
+	if len(idx.partitions) == 0 || (start != 0 && end != 0 && start >= end) {
 		return nil
 	}
 
-	candidates := idx.timeIndex.Range(start, end)
-	if len(candidates) == 0 {
-		return nil
+	// A range of partition start keys misses partitions that begin before
+	// start but still overlap the query. Bound the sorted slice by end, then
+	// check each interval's end; end times need not be monotonically ordered.
+	limit := len(idx.partitions)
+	if end != 0 {
+		limit = sort.Search(limit, func(i int) bool {
+			return idx.partitions[i].startTime >= end
+		})
 	}
-	result := make([]*Partition, 0, len(candidates))
-	for _, part := range candidates {
-		if end != 0 && part.startTime >= end {
-			continue
-		}
-		if part.endTime <= start {
+	var result []*Partition
+	for _, part := range idx.partitions[:limit] {
+		if start != 0 && part.endTime <= start {
 			continue
 		}
 		result = append(result, part)
@@ -152,6 +154,7 @@ func (idx *Index) Metrics() []string {
 	for m := range idx.metrics {
 		out = append(out, m)
 	}
+
 	sort.Strings(out)
 	return out
 }
