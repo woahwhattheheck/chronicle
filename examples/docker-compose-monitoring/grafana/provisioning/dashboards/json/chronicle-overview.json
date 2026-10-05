@@ -3,7 +3,7 @@
   "uid": "chronicle-compose-overview",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "panels": [
     {
       "type": "timeseries",
@@ -22,6 +22,18 @@
         {"expr": "rate(prometheus_tsdb_head_samples_appended_total[1m])", "legendFormat": "samples/s", "refId": "A"}
       ],
       "datasource": {"type": "prometheus", "uid": "Prometheus"}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Stored demo CPU percent",
+      "description": "Sample values stored in Chronicle by the metric-gen service.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "demo_cpu_percent{host=\"compose\",env=\"dev\"}", "legendFormat": "{{host}}", "refId": "A", "range": true, "instant": false}
+      ],
+      "datasource": {"type": "prometheus", "uid": "Chronicle"},
+      "fieldConfig": {"defaults": {"unit": "percent"}, "overrides": []}
     }
   ]
 }

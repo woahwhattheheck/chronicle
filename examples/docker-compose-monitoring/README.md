@@ -20,7 +20,7 @@ curl -f http://localhost:8086/metrics
 curl -fs 'http://localhost:9090/api/v1/query?query=chronicle_metric_count'
 ```
 
-The `metric-gen` service posts one line-protocol point every five seconds. After its first write, `chronicle_metric_count` should become at least 1. The dashboard shows `up{job="chronicle"}` and Prometheus scrape activity. The `ChronicleTargetDown` alert fires if the scrape fails for one minute; `ChronicleNoSampleData` fires if the sample generator has not produced any metric after one minute.
+The `metric-gen` service posts one line-protocol point every five seconds. After its first write, `chronicle_metric_count` should become at least 1. The dashboard retains `up{job="chronicle"}` and Prometheus scrape activity, and adds a stored `demo_cpu_percent{host="compose",env="dev"}` time-series panel using the `Chronicle` datasource. The `ChronicleTargetDown` alert fires if the scrape fails for one minute; `ChronicleNoSampleData` fires if the sample generator has not produced any metric after one minute.
 
 The emitter sends `X-Requested-With: XMLHttpRequest` and `Content-Type: text/plain` on its non-browser write requests. Chronicle's CSRF validation remains enabled; omitting the required request header caused the earlier emitter to receive HTTP 403 instead of ingesting data.
 
@@ -68,3 +68,37 @@ The earlier [source-head run](https://github.com/woahwhattheheck/chronicle/actio
 The passing artifact contains 36 files: the structured results, raw service/build logs, resolved Compose configuration, actual image digests, runtime/source provenance, before/after query responses, the executed probe, and an empty tracked-source diff. ZIP SHA-256: `83fe86c5f837e7b04a3692214647701e36ddddb5ef28a793675121be4e9db69d`. The hosted artifact is retained for 14 days from the run.
 
 These checks exercised the real maintained containers and APIs, not mocked services. They establish local Alertmanager receipt and Grafana provisioning/query behavior, not external notifications or browser rendering. They do not assert other-platform support, upstream CI approval, maintainer acceptance, or bounty payment.
+
+## Direct stored-data dashboard — October 5, 2026 source continuation
+
+This continues `CHRONICLE106-DIRECT-DATA-DASHBOARD-RIVET1004` on the existing
+[PR #106](https://github.com/josedab/chronicle/pull/106) and
+[claim #100](https://github.com/josedab/chronicle/issues/100).
+The source preimage is `be2161b3486d2ab94bc8feb019d0ad41e200ab44`.
+
+The Chronicle datasource now has the stable UID `Chronicle` and uses GET.
+Grafana's Prometheus datasource supports this provisioned
+[`httpMethod` option](https://grafana.com/docs/grafana/latest/administration/provisioning/).
+Chronicle's `/api/v1/query` and `/api/v1/query_range` handlers accept GET query
+parameters. Its existing middleware rejects form POST requests without an
+accepted request header or origin; the previous datasource did not configure
+such a header. This change uses the existing read route without weakening
+server validation or changing the emitter's write headers.
+
+The third panel queries `demo_cpu_percent{host="compose",env="dev"}` directly
+from Chronicle. Those labels and the metric name match the unchanged
+`metric-gen` service. The two existing panels still use the separate
+`Prometheus` UID; that datasource remains the default and retains POST.
+The new panel requires stored samples in the selected time range. A healthy
+Prometheus target by itself does not establish stored sample visibility.
+
+For an already running stack, restart Grafana after applying the provisioning
+changes so it reloads the datasource configuration. No database volume reset
+is needed. The Compose file, ingestion, alerts, server enforcement and
+persistence paths are unchanged.
+
+This three-file continuation was inspected and published with exact source
+readbacks only. No Grafana query, browser render, Go command, Docker container,
+test or workflow was executed for it. The earlier 19-check record above belongs
+to its original two-panel source and has not been replayed or extended to the
+new direct-data panel; live integration acceptance remains unperformed.
