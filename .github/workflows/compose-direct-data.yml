@@ -15,7 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 3ec9685653eef096c1af075fecc12982cda77ce6
+          ref: 27613bcbfb086fd990879c225079fee46b898532
+          fetch-depth: 2
           persist-credentials: false
       - name: Start the maintained Compose stack
         working-directory: examples/docker-compose-monitoring
@@ -116,7 +117,7 @@ jobs:
                   if field.get('type') == 'number' and field.get('labels', {}).get('host') == 'compose':
                       readings.extend(v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
           summary = {
-              'source_sha': '3ec9685653eef096c1af075fecc12982cda77ce6',
+              'source_sha': '27613bcbfb086fd990879c225079fee46b898532',
               'grafana_version': health.get('version'), 'datasource_uid': source['uid'],
               'stored_selector': selector,
               'native_instant_series': len(instant.get('data', {}).get('result', [])),
@@ -134,6 +135,30 @@ jobs:
           assert not item.get('error') and item.get('status', 200) < 400, 'Backend query error'
           assert readings and all(20 <= value <= 34 for value in readings), 'No valid stored samples in Grafana backend frames'
           PY
+      - name: Run the focused interval regression against original and repaired source
+        run: |
+          set -o pipefail
+          git show 3ec9685653eef096c1af075fecc12982cda77ce6:index.go > /tmp/chronicle106-direct-data/index-before.go
+          git diff HEAD^ HEAD -- index.go index_overlap_test.go > /tmp/chronicle106-direct-data/repair.patch
+          docker build --target builder -t chronicle-query-regression -f examples/docker-compose-monitoring/Dockerfile . > /tmp/chronicle106-direct-data/regression-build.log 2>&1
+          docker run --rm -v /tmp/chronicle106-direct-data:/evidence chronicle-query-regression sh -ec '
+            test -z "$(gofmt -l index.go index_overlap_test.go)"
+            go version > /evidence/go-version.txt
+            cp index.go /tmp/index-fixed.go
+            cp /evidence/index-before.go index.go
+            set +e
+            CGO_ENABLED=0 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-before.log 2>&1
+            before=$?
+            set -e
+            if [ "$before" -ne 1 ] || ! grep -Fq -- "--- FAIL: TestIndexFindPartitionsOverlappingWindow" /evidence/regression-before.log; then
+              cat /evidence/regression-before.log
+              echo "Original source did not exhibit the expected executed regression failure"
+              exit 1
+            fi
+            cp /tmp/index-fixed.go index.go
+            CGO_ENABLED=0 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-after.log 2>&1
+            cat /evidence/regression-after.log
+          '
       - name: Preserve runtime diagnostics and stop this stack
         if: always()
         working-directory: examples/docker-compose-monitoring
