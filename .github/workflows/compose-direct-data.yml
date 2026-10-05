@@ -29,6 +29,7 @@ jobs:
         run: |
           python - <<'PY'
           import base64
+          from http.client import HTTPException
           import json
           import math
           from pathlib import Path
@@ -61,7 +62,7 @@ jobs:
                   health, _ = request('/api/health')
                   if health.get('database') == 'ok':
                       break
-              except (HTTPError, URLError, TimeoutError):
+              except (OSError, HTTPException):
                   pass
               time.sleep(2)
           else:
