@@ -106,3 +106,19 @@ func TestParseOptionsRejectsInvalidRoomsFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestParseOptionsDefaultClientIDIsMQTT311Portable(t *testing.T) {
+	cfg, err := parseTestOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.clientID) == 0 || len(cfg.clientID) > 23 {
+		t.Fatalf("default client ID length = %d, want 1..23 bytes: %q", len(cfg.clientID), cfg.clientID)
+	}
+	const portable = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	for _, r := range cfg.clientID {
+		if !strings.ContainsRune(portable, r) {
+			t.Fatalf("default client ID contains non-portable MQTT 3.1.1 character %q: %q", r, cfg.clientID)
+		}
+	}
+}
