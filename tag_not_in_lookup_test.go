@@ -3,6 +3,7 @@ package chronicle
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func testNotInValues(n int) []string {
