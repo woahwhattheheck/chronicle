@@ -72,7 +72,7 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags.StringVar(&cfg.mode, "mode", "mqtt", "mqtt or simulate")
 	flags.StringVar(&cfg.dbPath, "db", envOr("CHRONICLE_DB", "home_automation.db"), "database path")
 	flags.StringVar(&cfg.broker, "broker", envOr("MQTT_BROKER", "tcp://127.0.0.1:1883"), "MQTT broker URL")
-	flags.StringVar(&cfg.clientID, "client-id", fmt.Sprintf("chronicle-home-%x", time.Now().UnixNano()), "MQTT client ID")
+	flags.StringVar(&cfg.clientID, "client-id", defaultMQTTClientID(time.Now()), "MQTT client ID")
 	flags.StringVar(&topics, "topics", "home/#,zigbee2mqtt/#", "comma-separated subscription filters")
 	flags.StringVar(&roomsFile, "rooms", "", "JSON file mapping Zigbee2MQTT friendly names to rooms")
 	flags.IntVar(&cfg.httpPort, "http-port", 8086, "Chronicle HTTP port; 0 disables HTTP")
@@ -297,6 +297,13 @@ func clamp(value, low, high float64) float64 {
 		return high
 	}
 	return value
+}
+
+// MQTT 3.1.1 servers are only required to accept ClientIds made of
+// alphanumeric characters and no more than 23 UTF-8 bytes. Keep the generated
+// default inside that portable subset while retaining nanosecond-level entropy.
+func defaultMQTTClientID(now time.Time) string {
+	return fmt.Sprintf("chronicle%014x", uint64(now.UnixNano())&0x00ffffffffffffff)
 }
 
 func envOr(key, fallback string) string {
