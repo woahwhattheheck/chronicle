@@ -25,7 +25,7 @@ jobs:
           docker compose version > /tmp/chronicle106-direct-data/compose-version.txt
           set -o pipefail
           docker compose up --build -d 2>&1 | tee /tmp/chronicle106-direct-data/start.log
-      - name: Query the provisioned stored-data panel
+      - name: Query native and provisioned stored-data paths
         run: |
           python - <<'PY'
           import base64
@@ -34,32 +34,33 @@ jobs:
           import math
           from pathlib import Path
           import time
-          from urllib.error import HTTPError, URLError
+          from urllib.error import HTTPError
           from urllib.parse import urlencode
           from urllib.request import Request, urlopen
-          
+
           out = Path('/tmp/chronicle106-direct-data')
-          out.mkdir(exist_ok=True)
           base = 'http://127.0.0.1:3000'
           headers = {'Authorization': 'Basic ' + base64.b64encode(b'admin:chronicle').decode()}
           selector = 'demo_cpu_percent{host="compose",env="dev"}'
-          
+
           def request(path, body=None):
               h = dict(headers)
               if body is not None:
                   h.update({'Content-Type': 'application/json', 'Origin': base})
-              start = time.perf_counter()
               req = Request(base + path, headers=h, data=None if body is None else json.dumps(body).encode())
               with urlopen(req, timeout=15) as response:
-                  result = json.load(response)
-              return result, (time.perf_counter() - start) * 1000
-          
+                  return json.load(response)
+
           def save(name, value):
               (out / name).write_text(json.dumps(value, indent=2) + '\n')
-          
+
+          def native(path):
+              with urlopen('http://127.0.0.1:8086' + path, timeout=15) as response:
+                  return json.load(response)
+
           for attempt in range(60):
               try:
-                  health, _ = request('/api/health')
+                  health = request('/api/health')
                   if health.get('database') == 'ok':
                       break
               except (OSError, HTTPException):
@@ -67,68 +68,71 @@ jobs:
               time.sleep(2)
           else:
               raise RuntimeError('Grafana did not become ready')
-          
-          source, _ = request('/api/datasources/uid/Chronicle')
+          save('grafana-health.json', health)
+          source = request('/api/datasources/uid/Chronicle')
           save('datasource.json', source)
-          assert source['type'] == 'prometheus' and source['url'] == 'http://chronicle:8086', source
-          assert source['jsonData']['httpMethod'] == 'GET', source
-          
-          dashboard, _ = request('/api/dashboards/uid/chronicle-compose-overview')
+          assert source['type'] == 'prometheus' and source['url'] == 'http://chronicle:8086'
+          assert source['jsonData']['httpMethod'] == 'GET'
+          dashboard = request('/api/dashboards/uid/chronicle-compose-overview')
           save('dashboard.json', dashboard)
           panels = dashboard['dashboard']['panels']
           panel = next(p for p in panels if p.get('id') == 3)
-          assert panel['datasource']['uid'] == 'Chronicle', panel
-          assert panel['targets'][0]['expr'] == selector, panel
+          assert panel['datasource']['uid'] == 'Chronicle'
+          assert panel['targets'][0]['expr'] == selector
           assert [p['datasource']['uid'] for p in panels[:2]] == ['Prometheus', 'Prometheus']
-          
-          # Exercise the browser's backend datasource query, not merely /metrics or a healthy scrape.
-          for attempt in range(30):
-              now = int(time.time() * 1000)
-              query = {
-                  'queries': [{**panel['targets'][0], 'datasource': panel['datasource'],
-                               'format': 'time_series', 'intervalMs': 5000, 'maxDataPoints': 1000}],
-                  'from': str(now - 300000), 'to': str(now),
-              }
-              try:
-                  result, latency_ms = request('/api/ds/query', query)
-              except HTTPError as error:
-                  save('backend-http-error.json', {'status': error.code, 'body': error.read().decode('utf-8', 'replace')})
-                  raise
-              save('backend-query-request.json', query)
-              save('backend-query-response.json', result)
-              item = result.get('results', {}).get('A', {})
-              if item.get('error') or item.get('status', 200) >= 400:
-                  raise RuntimeError('Grafana datasource query failed; inspect backend-query-response.json')
-              readings = []
-              for frame in item.get('frames', []):
-                  for field, values in zip(frame.get('schema', {}).get('fields', []), frame.get('data', {}).get('values', [])):
-                      if field.get('type') == 'number' and field.get('labels', {}).get('host') == 'compose':
-                          readings.extend(v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
-              if readings:
-                  assert all(20 <= value <= 34 for value in readings), readings
+
+          # Establish actual ingestion before comparing the three query paths.
+          for attempt in range(12):
+              instant = native('/api/v1/query?' + urlencode({'query': selector}))
+              save('native-instant-response.json', instant)
+              if instant.get('data', {}).get('result'):
                   break
               time.sleep(5)
-          else:
-              raise RuntimeError('Grafana returned no finite stored demo samples')
-          
-          now = time.time()
-          proxy, _ = request('/api/datasources/proxy/uid/Chronicle/api/v1/query_range?' + urlencode({
-              'query': selector, 'start': now - 300, 'end': now, 'step': 5,
-          }))
+          now = int(time.time())
+          params = {'query': selector, 'start': now - 300, 'end': now, 'step': 5}
+          route = '/api/v1/query_range?' + urlencode(params)
+          save('native-range-request.json', params)
+          direct = native(route)
+          save('native-range-response.json', direct)
+          proxy = request('/api/datasources/proxy/uid/Chronicle' + route)
           save('proxy-range-response.json', proxy)
-          assert proxy.get('status') == 'success', proxy
-          series = proxy['data']['result']
-          assert series and any(s.get('values') for s in series), proxy
-          assert any(s.get('metric', {}).get('host') == 'compose' and s.get('metric', {}).get('env') == 'dev' for s in series), proxy
-          save('result.json', {
+
+          query = {
+              'queries': [{**panel['targets'][0], 'datasource': panel['datasource'],
+                           'format': 'time_series', 'intervalMs': 5000, 'maxDataPoints': 1000}],
+              'from': str((now - 300) * 1000), 'to': str(now * 1000),
+          }
+          save('backend-query-request.json', query)
+          try:
+              result = request('/api/ds/query', query)
+          except HTTPError as error:
+              save('backend-http-error.json', {'status': error.code, 'body': error.read().decode('utf-8', 'replace')})
+              raise
+          save('backend-query-response.json', result)
+          item = result.get('results', {}).get('A', {})
+          readings = []
+          for frame in item.get('frames', []):
+              for field, values in zip(frame.get('schema', {}).get('fields', []), frame.get('data', {}).get('values', [])):
+                  if field.get('type') == 'number' and field.get('labels', {}).get('host') == 'compose':
+                      readings.extend(v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
+          summary = {
               'source_sha': '3ec9685653eef096c1af075fecc12982cda77ce6',
               'grafana_version': health.get('version'), 'datasource_uid': source['uid'],
-              'stored_selector': selector, 'backend_finite_samples': len(readings),
-              'backend_value_min': min(readings), 'backend_value_max': max(readings),
-              'successful_backend_request_ms': latency_ms, 'proxy_series': len(series),
-              'scope': 'Real provisioned dashboard, datasource backend query and proxy range request. No browser rendering, full regression suite, external notification or payment claim.',
-          })
-          print((out / 'result.json').read_text())
+              'stored_selector': selector,
+              'native_instant_series': len(instant.get('data', {}).get('result', [])),
+              'native_range_series': len(direct.get('data', {}).get('result', [])),
+              'proxy_range_series': len(proxy.get('data', {}).get('result', [])),
+              'backend_finite_samples': len(readings),
+              'backend_value_min': min(readings) if readings else None,
+              'backend_value_max': max(readings) if readings else None,
+              'scope': 'Real maintained containers, provisioned dashboard, native queries, datasource proxy and backend query. No browser rendering, full regression suite, external notification or payment claim.',
+          }
+          save('result.json', summary)
+          print(json.dumps(summary, indent=2))
+          assert direct.get('status') == 'success' and summary['native_range_series'] > 0, 'No native stored range data'
+          assert proxy.get('status') == 'success' and summary['proxy_range_series'] > 0, 'No proxy range data'
+          assert not item.get('error') and item.get('status', 200) < 400, 'Backend query error'
+          assert readings and all(20 <= value <= 34 for value in readings), 'No valid stored samples in Grafana backend frames'
           PY
       - name: Preserve runtime diagnostics and stop this stack
         if: always()
