@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: sol56/chronicle103-notin-lookup-20261004
+          ref: d6d4bd10db900e4cb6108c269b914655dd286270
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
