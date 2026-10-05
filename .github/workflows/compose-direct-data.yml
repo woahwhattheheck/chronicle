@@ -1,0 +1,147 @@
+name: Exercise direct stored-data Grafana panel
+on:
+  push:
+    branches: [validation/compose-direct-data-20261005-peregrine]
+permissions:
+  contents: read
+concurrency:
+  group: chronicle106-direct-data-peregrine
+  cancel-in-progress: false
+jobs:
+  direct-data:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 3ec9685653eef096c1af075fecc12982cda77ce6
+          persist-credentials: false
+      - name: Start the maintained Compose stack
+        working-directory: examples/docker-compose-monitoring
+        run: |
+          mkdir -p /tmp/chronicle106-direct-data
+          git rev-parse HEAD > /tmp/chronicle106-direct-data/source.txt
+          docker compose version > /tmp/chronicle106-direct-data/compose-version.txt
+          set -o pipefail
+          docker compose up --build -d 2>&1 | tee /tmp/chronicle106-direct-data/start.log
+      - name: Query the provisioned stored-data panel
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import math
+          from pathlib import Path
+          import time
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+          
+          out = Path('/tmp/chronicle106-direct-data')
+          out.mkdir(exist_ok=True)
+          base = 'http://127.0.0.1:3000'
+          headers = {'Authorization': 'Basic ' + base64.b64encode(b'admin:chronicle').decode()}
+          selector = 'demo_cpu_percent{host="compose",env="dev"}'
+          
+          def request(path, body=None):
+              h = dict(headers)
+              if body is not None:
+                  h.update({'Content-Type': 'application/json', 'Origin': base})
+              start = time.perf_counter()
+              req = Request(base + path, headers=h, data=None if body is None else json.dumps(body).encode())
+              with urlopen(req, timeout=15) as response:
+                  result = json.load(response)
+              return result, (time.perf_counter() - start) * 1000
+          
+          def save(name, value):
+              (out / name).write_text(json.dumps(value, indent=2) + '\n')
+          
+          for attempt in range(60):
+              try:
+                  health, _ = request('/api/health')
+                  if health.get('database') == 'ok':
+                      break
+              except (HTTPError, URLError, TimeoutError):
+                  pass
+              time.sleep(2)
+          else:
+              raise RuntimeError('Grafana did not become ready')
+          
+          source, _ = request('/api/datasources/uid/Chronicle')
+          save('datasource.json', source)
+          assert source['type'] == 'prometheus' and source['url'] == 'http://chronicle:8086', source
+          assert source['jsonData']['httpMethod'] == 'GET', source
+          
+          dashboard, _ = request('/api/dashboards/uid/chronicle-compose-overview')
+          save('dashboard.json', dashboard)
+          panels = dashboard['dashboard']['panels']
+          panel = next(p for p in panels if p.get('id') == 3)
+          assert panel['datasource']['uid'] == 'Chronicle', panel
+          assert panel['targets'][0]['expr'] == selector, panel
+          assert [p['datasource']['uid'] for p in panels[:2]] == ['Prometheus', 'Prometheus']
+          
+          # Exercise the browser's backend datasource query, not merely /metrics or a healthy scrape.
+          for attempt in range(30):
+              now = int(time.time() * 1000)
+              query = {
+                  'queries': [{**panel['targets'][0], 'datasource': panel['datasource'],
+                               'format': 'time_series', 'intervalMs': 5000, 'maxDataPoints': 1000}],
+                  'from': str(now - 300000), 'to': str(now),
+              }
+              try:
+                  result, latency_ms = request('/api/ds/query', query)
+              except HTTPError as error:
+                  save('backend-http-error.json', {'status': error.code, 'body': error.read().decode('utf-8', 'replace')})
+                  raise
+              save('backend-query-request.json', query)
+              save('backend-query-response.json', result)
+              item = result.get('results', {}).get('A', {})
+              if item.get('error') or item.get('status', 200) >= 400:
+                  raise RuntimeError('Grafana datasource query failed; inspect backend-query-response.json')
+              readings = []
+              for frame in item.get('frames', []):
+                  for field, values in zip(frame.get('schema', {}).get('fields', []), frame.get('data', {}).get('values', [])):
+                      if field.get('type') == 'number' and field.get('labels', {}).get('host') == 'compose':
+                          readings.extend(v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
+              if readings:
+                  assert all(20 <= value <= 34 for value in readings), readings
+                  break
+              time.sleep(5)
+          else:
+              raise RuntimeError('Grafana returned no finite stored demo samples')
+          
+          now = time.time()
+          proxy, _ = request('/api/datasources/proxy/uid/Chronicle/api/v1/query_range?' + urlencode({
+              'query': selector, 'start': now - 300, 'end': now, 'step': 5,
+          }))
+          save('proxy-range-response.json', proxy)
+          assert proxy.get('status') == 'success', proxy
+          series = proxy['data']['result']
+          assert series and any(s.get('values') for s in series), proxy
+          assert any(s.get('metric', {}).get('host') == 'compose' and s.get('metric', {}).get('env') == 'dev' for s in series), proxy
+          save('result.json', {
+              'source_sha': '3ec9685653eef096c1af075fecc12982cda77ce6',
+              'grafana_version': health.get('version'), 'datasource_uid': source['uid'],
+              'stored_selector': selector, 'backend_finite_samples': len(readings),
+              'backend_value_min': min(readings), 'backend_value_max': max(readings),
+              'successful_backend_request_ms': latency_ms, 'proxy_series': len(series),
+              'scope': 'Real provisioned dashboard, datasource backend query and proxy range request. No browser rendering, full regression suite, external notification or payment claim.',
+          })
+          print((out / 'result.json').read_text())
+          PY
+      - name: Preserve runtime diagnostics and stop this stack
+        if: always()
+        working-directory: examples/docker-compose-monitoring
+        run: |
+          mkdir -p /tmp/chronicle106-direct-data
+          docker compose ps --format json > /tmp/chronicle106-direct-data/services.json
+          docker compose images --format json > /tmp/chronicle106-direct-data/images.json
+          docker compose logs --no-color --tail 100 > /tmp/chronicle106-direct-data/services.log 2>&1
+          git diff --exit-code > /tmp/chronicle106-direct-data/tracked-source.diff
+          docker compose down
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: chronicle106-direct-data-${{ github.run_id }}
+          path: /tmp/chronicle106-direct-data/
+          retention-days: 14
