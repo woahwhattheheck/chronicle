@@ -142,12 +142,13 @@ jobs:
           git diff HEAD^ HEAD -- index.go index_overlap_test.go > /tmp/chronicle106-direct-data/repair.patch
           docker build --target builder -t chronicle-query-regression -f examples/docker-compose-monitoring/Dockerfile . > /tmp/chronicle106-direct-data/regression-build.log 2>&1
           docker run --rm -v /tmp/chronicle106-direct-data:/evidence chronicle-query-regression sh -ec '
+            apk add --no-cache build-base > /evidence/build-toolchain.log
             test -z "$(gofmt -l index.go index_overlap_test.go)"
             go version > /evidence/go-version.txt
             cp index.go /tmp/index-fixed.go
             cp /evidence/index-before.go index.go
             set +e
-            CGO_ENABLED=0 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-before.log 2>&1
+            CGO_ENABLED=1 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-before.log 2>&1
             before=$?
             set -e
             if [ "$before" -ne 1 ] || ! grep -Fq -- "--- FAIL: TestIndexFindPartitionsOverlappingWindow" /evidence/regression-before.log; then
@@ -156,7 +157,7 @@ jobs:
               exit 1
             fi
             cp /tmp/index-fixed.go index.go
-            CGO_ENABLED=0 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-after.log 2>&1
+            CGO_ENABLED=1 go test -p 2 -run "^TestIndexFindPartitionsOverlappingWindow$" -count=1 -v . > /evidence/regression-after.log 2>&1
             cat /evidence/regression-after.log
           '
       - name: Preserve runtime diagnostics and stop this stack
