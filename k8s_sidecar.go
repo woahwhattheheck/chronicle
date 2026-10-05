@@ -1,7 +1,10 @@
+// Modified 2026-10-05: encode qualified pod-label keys and reject mapping collisions
+// before adding metadata to scrape points. See the accompanying source continuation.
 package chronicle
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -410,7 +413,10 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 
 	if len(points) > 0 {
 		// Add pod metadata tags
-		s.addMetadataTags(points)
+		if err := s.addMetadataTags(points); err != nil {
+			s.recordScrapeError(err)
+			return
+		}
 
 		// Write to Chronicle
 		if err := s.db.WriteBatch(points); err != nil {
@@ -575,9 +581,49 @@ func (s *K8sSidecar) parseLabels(labelStr string) map[string]string {
 	return labels
 }
 
-func (s *K8sSidecar) addMetadataTags(points []Point) {
+// Kubernetes qualified label keys contain a DNS prefix and a slash, which
+// Chronicle tag keys cannot contain. Preserve literal no-slash names and encode
+// qualified names into a bounded namespace. Callers can mutate GetPodInfo(), so
+// validate qualified keys and check collisions across the complete mapping.
+var sidecarQualifiedLabelPrefix = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+var sidecarQualifiedLabelName = regexp.MustCompile(`^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$`)
+
+func sidecarPodLabelTags(labels map[string]string) (map[string]string, error) {
+	tags := make(map[string]string, len(labels))
+	sources := make(map[string]string, len(labels))
+	for key, value := range labels {
+		tagKey := "pod_label_" + key
+		if strings.Contains(key, "/") {
+			prefix, name, _ := strings.Cut(key, "/")
+			if len(prefix) > 253 || len(name) > 63 ||
+				!sidecarQualifiedLabelPrefix.MatchString(prefix) ||
+				!sidecarQualifiedLabelName.MatchString(name) {
+				return nil, fmt.Errorf("invalid qualified pod label key %q", key)
+			}
+			digest := sha256.Sum256([]byte(key))
+			tagKey = fmt.Sprintf("pod_label_q_%x", digest)
+		}
+		if previous, exists := sources[tagKey]; exists && previous != key {
+			return nil, errors.New("pod label keys map to the same Chronicle tag")
+		}
+		sources[tagKey] = key
+		tags[tagKey] = value
+	}
+	return tags, nil
+}
+
+func (s *K8sSidecar) addMetadataTags(points []Point) error {
 	if s.podInfo == nil {
-		return
+		return nil
+	}
+
+	var podLabels map[string]string
+	if s.config.AddPodLabels {
+		var err error
+		podLabels, err = sidecarPodLabelTags(s.podInfo.Labels)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := range points {
@@ -591,13 +637,11 @@ func (s *K8sSidecar) addMetadataTags(points []Point) {
 		if s.config.AddNodeName && s.podInfo.NodeName != "" {
 			points[i].Tags["node"] = s.podInfo.NodeName
 		}
-		if s.config.AddPodLabels {
-			for k, v := range s.podInfo.Labels {
-				// Prefix pod labels to avoid conflicts
-				points[i].Tags["pod_label_"+k] = v
-			}
+		for k, v := range podLabels {
+			points[i].Tags[k] = v
 		}
 	}
+	return nil
 }
 
 func (s *K8sSidecar) recordScrapeError(err error) {
