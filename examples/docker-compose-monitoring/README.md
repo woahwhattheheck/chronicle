@@ -46,7 +46,7 @@ To customize, edit `prometheus/alerts.yml`, replace `metric-gen` with an emitter
 
 ## Executed acceptance evidence — October 4, 2026
 
-The maintained stack at source commit `a991190eef51d555c1bcaa4dacc960256797120e` was built and run on a hosted Linux runner with Docker Compose **v2.38.2**. This documentation follow-up does not alter that validated runtime source.
+The maintained stack at source commit `a991190eef51d555c1bcaa4dacc960256797120e` was built and run on a hosted Linux runner with Docker Compose **v2.38.2**. This is a historical, source-bound result; the later direct-data panel and partition correction have separate evidence below.
 
 [Successful run and complete logs](https://github.com/woahwhattheheck/chronicle/actions/runs/37189161693) · [Evidence artifact](https://github.com/woahwhattheheck/chronicle/actions/runs/37189161693/artifacts/11298288760) · [Exact acceptance workflow](https://github.com/woahwhattheheck/chronicle/blob/a5de59deb36a3524a0ea48ab320f01ea6884c0ad/.github/workflows/verify-compose-106.yml)
 
@@ -69,36 +69,30 @@ The passing artifact contains 36 files: the structured results, raw service/buil
 
 These checks exercised the real maintained containers and APIs, not mocked services. They establish local Alertmanager receipt and Grafana provisioning/query behavior, not external notifications or browser rendering. They do not assert other-platform support, upstream CI approval, maintainer acceptance, or bounty payment.
 
-## Direct stored-data dashboard — October 5, 2026 source continuation
+## Direct stored-data dashboard — October 5, 2026
 
-This continues `CHRONICLE106-DIRECT-DATA-DASHBOARD-RIVET1004` on the existing
-[PR #106](https://github.com/josedab/chronicle/pull/106) and
-[claim #100](https://github.com/josedab/chronicle/issues/100).
-The source preimage is `be2161b3486d2ab94bc8feb019d0ad41e200ab44`.
+The source continuation from `be2161b3486d2ab94bc8feb019d0ad41e200ab44` remains on the existing [PR #106](https://github.com/josedab/chronicle/pull/106) and [claim #100](https://github.com/josedab/chronicle/issues/100).
 
-The Chronicle datasource now has the stable UID `Chronicle` and uses GET.
-Grafana's Prometheus datasource supports this provisioned
-[`httpMethod` option](https://grafana.com/docs/grafana/latest/administration/provisioning/).
-Chronicle's `/api/v1/query` and `/api/v1/query_range` handlers accept GET query
-parameters. Its existing middleware rejects form POST requests without an
-accepted request header or origin; the previous datasource did not configure
-such a header. This change uses the existing read route without weakening
-server validation or changing the emitter's write headers.
+The Chronicle datasource has the stable UID `Chronicle` and uses GET. Grafana's Prometheus datasource supports this provisioned [`httpMethod` option](https://grafana.com/docs/grafana/latest/administration/provisioning/). Chronicle's `/api/v1/query` and `/api/v1/query_range` handlers accept GET query parameters. This uses the existing read route without weakening server validation or changing the emitter's write headers.
 
-The third panel queries `demo_cpu_percent{host="compose",env="dev"}` directly
-from Chronicle. Those labels and the metric name match the unchanged
-`metric-gen` service. The two existing panels still use the separate
-`Prometheus` UID; that datasource remains the default and retains POST.
-The new panel requires stored samples in the selected time range. A healthy
-Prometheus target by itself does not establish stored sample visibility.
+The third panel queries `demo_cpu_percent{host="compose",env="dev"}` directly from Chronicle. Those labels and the metric name match the unchanged `metric-gen` service. The two existing panels still use the separate `Prometheus` UID; that datasource remains the default and retains POST. A healthy Prometheus target alone does not establish stored sample visibility.
 
-For an already running stack, restart Grafana after applying the provisioning
-changes so it reloads the datasource configuration. No database volume reset
-is needed. The Compose file, ingestion, alerts, server enforcement and
-persistence paths are unchanged.
+For an already running stack, restart Grafana after applying the provisioning changes. For the partition-query repair below, rebuild and recreate Chronicle with `docker compose up --build -d`. No database volume reset is needed.
 
-This three-file continuation was inspected and published with exact source
-readbacks only. No Grafana query, browser render, Go command, Docker container,
-test or workflow was executed for it. The earlier 19-check record above belongs
-to its original two-panel source and has not been replayed or extended to the
-new direct-data panel; live integration acceptance remains unperformed.
+### Reproduced short-window failure and repair
+
+A live run of source `3ec9685653eef096c1af075fecc12982cda77ce6` started the real maintained containers with Grafana **11.5.2**. A native instant query returned a stored sample at timestamp `1791228289.002437`, value `21`. An explicit five-minute range `[1791227993, 1791228293)` contained that timestamp but returned an empty matrix. The same query through Grafana's datasource proxy returned no series, and `/api/ds/query` returned HTTP 200 with an empty frame.
+
+[Baseline run](https://github.com/woahwhattheheck/chronicle/actions/runs/37363033115) · [Raw request/response artifact](https://github.com/woahwhattheheck/chronicle/actions/runs/37363033115/artifacts/11366683937). ZIP SHA-256: `b4b00c2489538220572c0c5e35766b1fb4c1f6bc86cf0a23eba14e728753043e`.
+
+`Index.FindPartitions` searched partition start keys inside the requested window, excluding an earlier-starting partition even when it overlapped the query. Source repair `27613bcbfb086fd990879c225079fee46b898532` bounds the sorted partition slice by the exclusive query end and checks interval ends against the inclusive query start. It preserves unbounded queries and handles overlapping partitions without assuming their end times are sorted. The previous B-tree range implementation visited every leaf; this repair does not claim logarithmic lookup or a measured performance speedup.
+
+The repair adds one focused, 40-line regression covering nine interval cases. The selected command is:
+
+```bash
+go test -p 2 -run '^TestIndexFindPartitionsOverlappingWindow$' -count=1 -v .
+```
+
+[Repaired-source run](https://github.com/woahwhattheheck/chronicle/actions/runs/37364242050) · [Exact workflow](https://github.com/woahwhattheheck/chronicle/blob/4137b97daacc2e18d141664068662bdf25959bd9/.github/workflows/compose-direct-data.yml).
+
+At this documentation update, the repaired-source job was still queued: **its regression and live integration results are not yet established**. The workflow checks the same native, Grafana proxy and Grafana backend queries, and runs the focused regression against both original and repaired source. It does not replay the earlier 19-check suite or claim browser rendering, external notification, upstream acceptance, or bounty payment.
