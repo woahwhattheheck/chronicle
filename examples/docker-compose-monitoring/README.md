@@ -90,9 +90,15 @@ A live run of source `3ec9685653eef096c1af075fecc12982cda77ce6` started the real
 The repair adds one focused, 40-line regression covering nine interval cases. The selected command is:
 
 ```bash
-go test -p 2 -run '^TestIndexFindPartitionsOverlappingWindow$' -count=1 -v .
+CGO_ENABLED=1 go test -p 2 -run '^TestIndexFindPartitionsOverlappingWindow$' -count=1 -v .
 ```
 
-[Repaired-source run](https://github.com/woahwhattheheck/chronicle/actions/runs/37364242050) · [Exact workflow](https://github.com/woahwhattheheck/chronicle/blob/4137b97daacc2e18d141664068662bdf25959bd9/.github/workflows/compose-direct-data.yml).
+[Initial repaired-source run](https://github.com/woahwhattheheck/chronicle/actions/runs/37364242050) completed the live native and Grafana queries, but its focused Go regression did not execute: the harness forced `CGO_ENABLED=0`, which excluded `cffi.go` while compiling `cffi_test.go` and produced undefined CFFI symbols. This was a validation-harness failure, not a passing regression result.
 
-At this documentation update, the repaired-source job was still queued: **its regression and live integration results are not yet established**. The workflow checks the same native, Grafana proxy and Grafana backend queries, and runs the focused regression against both original and repaired source. It does not replay the earlier 19-check suite or claim browser rendering, external notification, upstream acceptance, or bounty payment.
+[Successful CGO-enabled run, attempt 2](https://github.com/woahwhattheheck/chronicle/actions/runs/37374008166/attempts/2) · [Evidence artifact](https://github.com/woahwhattheheck/chronicle/actions/runs/37374008166/artifacts/11457987581) · [Exact workflow](https://github.com/woahwhattheheck/chronicle/blob/2e8137a7e93d8303c3ece5b6a93bc61b81e1e218/.github/workflows/compose-direct-data.yml).
+
+The successful run completed on **October 7, 2026** against source `27613bcbfb086fd990879c225079fee46b898532`, using the maintained Compose stack and Grafana **11.5.2**. The native instant query, native five-minute range query, and Grafana datasource-proxy range query each returned one series. Grafana's backend query returned one finite stored sample with value **21**, within the unchanged emitter's expected 20–34 range.
+
+The focused regression used a C toolchain with `CGO_ENABLED=1`. The workflow required an executed `TestIndexFindPartitionsOverlappingWindow` failure on the original `index.go`, then restored the repaired file and passed the test and all **nine interval subcases**. The pre-reconciliation product head `fcac4add989899f75cb4d50dcbb7635d644e2071` differs from that tested source only in this README; the runtime implementation is unchanged.
+
+These checks are separate from the earlier 19-check suite. They do not establish browser rendering, external notification, upstream CI approval, maintainer acceptance, or bounty payment. The hosted artifact is retained for 14 days from the run.
